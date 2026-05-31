@@ -1,5 +1,6 @@
 import {
   FiBell,
+  FiChevronDown,
   FiGrid,
   FiHelpCircle,
   FiLogOut,
@@ -12,7 +13,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import type { AuthUser } from "../types/auth";
+import type { AuthUser, GmailAccount } from "../types/auth";
 import type { AppRoute } from "../hooks/useHashRoute";
 import type { AppNotification } from "../types/email";
 
@@ -51,8 +52,10 @@ type AppShellProps = {
   unreadNotificationCount: number;
   onReadNotification: (notification: AppNotification) => void;
   onReadAllNotifications: () => void;
-  onApproveNotificationRequest?: (requestId: string) => void;
-  onRejectNotificationRequest?: (requestId: string) => void;
+  accounts: GmailAccount[];
+  selectedAccountId: string | null;
+  includeAllAccounts: boolean;
+  onAccountScopeChange: (value: string) => void;
   pendingMailAccessCount?: number;
   children: ReactNode;
 };
@@ -71,17 +74,21 @@ export function AppShell({
   unreadNotificationCount,
   onReadNotification,
   onReadAllNotifications,
-  onApproveNotificationRequest,
-  onRejectNotificationRequest,
+  accounts,
+  selectedAccountId,
+  includeAllAccounts,
+  onAccountScopeChange,
   pendingMailAccessCount = 0,
   children,
 }: AppShellProps) {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
+  const accountScopeRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = navItemsConfig.map((item) => {
     const locked =
@@ -105,6 +112,9 @@ export function AppShell({
       if (profileRef.current && !profileRef.current.contains(target)) {
         setProfileMenuOpen(false);
       }
+      if (accountScopeRef.current && !accountScopeRef.current.contains(target)) {
+        setAccountMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -115,13 +125,20 @@ export function AppShell({
 
   const primaryBtn =
     "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 text-sm font-semibold text-white hover:bg-slate-800 active:bg-slate-950 transition-all duration-200 shadow-md hover:shadow-lg";
+  const accountScopeValue = includeAllAccounts ? "all" : selectedAccountId ?? "all";
+  const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
+  const accountScopeLabel = accountScopeValue === "all" ? "All emails" : selectedAccount?.email ?? "All emails";
+  const accountScopeOptions = [
+    { value: "all", label: "All emails" },
+    ...accounts.map((account) => ({ value: account.id, label: account.email })),
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900">
 
       {/* HEADER */}
       <div className="sticky top-0 z-50 shadow-sm">
-        <header className="border-b border-slate-200 bg-white/85 backdrop-blur-lg">
+        <header className="relative z-[80] border-b border-slate-200 bg-white/85 backdrop-blur-lg">
           <div className="mx-auto max-w-7xl px-4 py-4">
 
             {/* TOP BAR */}
@@ -167,7 +184,7 @@ export function AppShell({
                 </button>
 
                 {/* NOTIFICATIONS */}
-                <div className="relative" ref={notificationRef}>
+                <div className="relative z-[90]" ref={notificationRef}>
                   <button
                     onClick={() => {
                       setNotificationMenuOpen((v) => !v);
@@ -184,7 +201,7 @@ export function AppShell({
                   </button>
 
                   {notificationMenuOpen && (
-                    <div className="absolute right-0 top-14 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[100] w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
 
                       {/* Header */}
                       <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
@@ -208,7 +225,10 @@ export function AppShell({
                           notifications.map((n) => (
                             <button
                               key={n._id}
-                              onClick={() => onReadNotification(n)}
+                              onClick={() => {
+                                setNotificationMenuOpen(false);
+                                onReadNotification(n);
+                              }}
                               className={`group relative w-full text-left px-5 py-4 transition-all duration-150
               ${n.readAt
                                   ? "bg-white text-slate-500"
@@ -229,28 +249,6 @@ export function AppShell({
                                 <p className="text-xs text-slate-600 mt-1 line-clamp-2">
                                   {n.message}
                                 </p>
-                                {n.metadata?.kind === "mail-access-admin-review" &&
-                                typeof n.metadata.requestId === "string" ? (
-                                  <div
-                                    className="mt-2 flex gap-2"
-                                    onClick={(event) => event.stopPropagation()}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => onApproveNotificationRequest?.(String(n.metadata?.requestId))}
-                                      className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white"
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onRejectNotificationRequest?.(String(n.metadata?.requestId))}
-                                      className="rounded-lg bg-rose-100 px-2.5 py-1 text-[11px] font-semibold text-rose-700"
-                                    >
-                                      Reject
-                                    </button>
-                                  </div>
-                                ) : null}
                               </div>
                             </button>
                           ))
@@ -313,10 +311,10 @@ export function AppShell({
           </div>
         </header>
 
-        {/* NAVIGATION */}
-        <nav className="border-b border-slate-200 bg-slate-50/90 backdrop-blur-lg" aria-label="Primary">
-          <div className="mx-auto flex max-w-7xl justify-center px-4 py-3">
-            <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-2xl bg-white/90 p-1.5 shadow-inner ring-1 ring-slate-200/80">
+        {/* WORKSPACE BAR */}
+        <section className="relative z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur-lg">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <nav className="flex min-w-0 max-w-full gap-1.5 overflow-x-auto rounded-2xl bg-white/90 p-1.5 shadow-inner ring-1 ring-slate-200/80" aria-label="Primary">
 
               {navItems.map(({ route: r, label, icon: Icon, locked }) => {
                 const active = route === r;
@@ -345,9 +343,67 @@ export function AppShell({
                 );
               })}
 
+            </nav>
+
+            <div ref={accountScopeRef} className="relative lg:w-[360px]">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!accounts.length) {
+                    return;
+                  }
+                  setAccountMenuOpen((current) => !current);
+                  setNotificationMenuOpen(false);
+                  setProfileMenuOpen(false);
+                }}
+                disabled={!accounts.length}
+                className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 text-left shadow-sm transition hover:border-sky-200 hover:bg-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+                title="Select mailbox scope"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                <FiMail />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 sm:text-base">
+                  {accounts.length ? accountScopeLabel : "No synced mailboxes"}
+                </span>
+                <FiChevronDown
+                  className={`shrink-0 text-slate-400 transition-transform ${accountMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {accountMenuOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[100] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                  <div className="max-h-72 overflow-y-auto p-1.5">
+                    {accountScopeOptions.map((option) => {
+                      const selected = option.value === accountScopeValue;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            onAccountScopeChange(option.value);
+                            setAccountMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
+                            selected
+                              ? "bg-slate-900 text-white"
+                              : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                          }`}
+                        >
+                          <span className="truncate">{option.label}</span>
+                          {selected ? (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-sky-300" />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
-        </nav>
+        </section>
       </div>
 
       {/* MAIN */}

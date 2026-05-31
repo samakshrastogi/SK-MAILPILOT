@@ -7,6 +7,7 @@ import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { UserModel } from "../models/user.model";
 import { exchangeGoogleCode, getGoogleAuthUrl } from "../services/google-oauth.service";
 import { sendEmailThroughGmail } from "../services/gmail.service";
+import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { createNotification } from "../services/notification.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { signState, verifyState } from "../utils/auth";
@@ -57,14 +58,38 @@ function authCompleteHtml(payload: Record<string, unknown>, returnTo?: string) {
 }
 
 function buildPendingApprovalEmail(requesterName: string, requesterEmail: string, requestedAccountEmail: string, requestId: string) {
-  return [
+  const plainText = [
     "A MailPilot mailbox request has been verified through Google and is ready for admin approval.",
     "",
     `Requester: ${requesterName}`,
     `Login email: ${requesterEmail}`,
     `Verified mailbox: ${requestedAccountEmail}`,
     `Request id: ${requestId}`,
+    "",
+    "Review this request in MailPilot:",
+    buildAppUrl("/mail-access"),
   ].join("\n");
+
+  const html = buildBrandedEmail({
+    preheader: `${requestedAccountEmail} is verified and waiting for admin approval.`,
+    eyebrow: "Admin review",
+    title: "New mailbox approval request",
+    greeting: "Hi Admin,",
+    intro: "A MailPilot mailbox request has been verified through Google and is ready for review.",
+    details: [
+      { label: "Requester", value: requesterName },
+      { label: "Login email", value: requesterEmail },
+      { label: "Verified mailbox", value: requestedAccountEmail },
+      { label: "Request ID", value: requestId },
+    ],
+    action: {
+      label: "Review request",
+      url: buildAppUrl("/mail-access"),
+    },
+    footerNote: "Approve only if this user should be allowed to sync and manage the verified mailbox in SK MailPilot.",
+  });
+
+  return { plainText, html };
 }
 
 export async function listAccounts(req: AuthenticatedRequest, res: Response) {
@@ -306,15 +331,18 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
         );
 
         try {
+          const pendingApprovalEmail = buildPendingApprovalEmail(
+            user?.name ?? result.profile.name,
+            user?.email ?? result.profile.email,
+            requestedAccountEmail,
+            String(requestDoc._id)
+          );
+
           await sendEmailThroughGmail({
             to: (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase(),
             subject: `Mail access request pending approval: ${requestedAccountEmail}`,
-            body: buildPendingApprovalEmail(
-              user?.name ?? result.profile.name,
-              user?.email ?? result.profile.email,
-              requestedAccountEmail,
-              String(requestDoc._id)
-            ),
+            body: pendingApprovalEmail.plainText,
+            htmlBody: pendingApprovalEmail.html,
           });
 
           requestDoc.notificationSentAt = new Date();

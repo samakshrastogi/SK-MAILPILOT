@@ -13,7 +13,19 @@ function formatDuration(durationMs: number) {
   return `${(durationMs / 1000).toFixed(1)} s`;
 }
 
-export function SyncHistoryPage() {
+function sortSyncHistoryLatestFirst(entries: SyncHistoryEntry[]) {
+  return [...entries].sort(
+    (left, right) =>
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+  );
+}
+
+type SyncHistoryPageProps = {
+  accountId?: string | null;
+  includeAllAccounts?: boolean;
+};
+
+export function SyncHistoryPage({ accountId, includeAllAccounts }: SyncHistoryPageProps) {
   const [history, setHistory] = useState<SyncHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,8 +35,8 @@ export function SyncHistoryPage() {
       setLoading(true);
     }
     try {
-      const response = await listSyncHistory();
-      setHistory(response.data);
+      const response = await listSyncHistory(20, { accountId, includeAllAccounts });
+      setHistory(sortSyncHistoryLatestFirst(response.data));
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to load sync history");
@@ -35,14 +47,14 @@ export function SyncHistoryPage() {
 
   useEffect(() => {
     void loadHistory(true);
-  }, []);
+  }, [accountId, includeAllAccounts]);
 
   useRealtimeStream(
     useCallback((event) => {
       if (event.event === "notification.created" || event.event === "audit.updated") {
         void loadHistory();
       }
-    }, [])
+    }, [accountId, includeAllAccounts])
   );
 
   return (

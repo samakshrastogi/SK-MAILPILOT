@@ -41,6 +41,14 @@ const composeBodySchema = z.object({
   saveAsDraft: z.boolean().default(false),
 });
 
+const composeQuerySchema = z.object({
+  accountId: z.string().trim().min(1).optional(),
+  includeAllAccounts: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .transform((value) => value === true || value === "true")
+    .optional(),
+});
+
 const suggestSubjectSchema = z.object({
   body: z.string().trim().min(1),
   recipients: z.array(z.string().trim().email()).default([]),
@@ -67,9 +75,15 @@ export async function listScheduledEmails(req: AuthenticatedRequest, res: Respon
     return;
   }
 
+  const query = composeQuerySchema.parse(req.query);
   const scheduledEmails = await ScheduledEmailModel.find({
     userId: req.auth.userId,
     status: { $ne: "cancelled" },
+    ...(query.includeAllAccounts
+      ? {}
+      : query.accountId
+        ? { accountId: query.accountId }
+        : { accountId: null }),
   })
     .sort({ createdAt: -1 })
     .lean();

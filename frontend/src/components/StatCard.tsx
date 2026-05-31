@@ -83,28 +83,28 @@ export function StatCard({
   return (
     <article
       onClick={onClick}
-      className={`group relative rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl 
-        px-5 py-4 transition-all duration-200 shadow-sm
+      className={`group relative rounded-xl border border-slate-200 bg-white/85 backdrop-blur-xl 
+        px-4 py-3 transition-all duration-200 shadow-sm
         hover:shadow-md hover:-translate-y-[2px] hover:ring-1 ${style.ring}
         ${onClick ? "cursor-pointer active:scale-[0.98]" : ""}
       `}
     >
       {/* subtle hover background */}
       <div
-        className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition ${style.soft}`}
+        className={`absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition ${style.soft}`}
       />
 
       {/* CONTENT */}
       <div className="relative">
         {/* TOP ROW */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             {label}
           </span>
 
           {icon && (
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm ${style.icon}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg shadow-sm ${style.icon}`}
             >
               <div className="text-base">{icon}</div>
             </div>
@@ -113,15 +113,15 @@ export function StatCard({
 
         {/* VALUE + HELPER + TREND */}
         <div className="flex items-end justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <strong
-              className={`text-2xl font-semibold tracking-tight ${style.accent}`}
+              className={`block text-2xl font-semibold leading-none tracking-tight ${style.accent}`}
             >
               {value}
             </strong>
 
             {helper && (
-              <div className="text-[11px] text-slate-500 mt-0.5">
+              <div className="mt-1 truncate text-[11px] leading-4 text-slate-500">
                 {helper}
               </div>
             )}

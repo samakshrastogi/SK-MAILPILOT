@@ -126,9 +126,8 @@ export function MailAccessModal({
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium text-slate-900">
-                          {account.displayName || account.email}
+                          {account.email}
                         </p>
-                        <p className="truncate text-xs text-slate-500">{account.email}</p>
                       </div>
                       <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
                         Connected

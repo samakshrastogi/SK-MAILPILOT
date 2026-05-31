@@ -60,42 +60,41 @@ export function TeamPage({ canManage }: TeamPageProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="flex items-center justify-between rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-sm">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">Team</p>
-          <h2 className="mt-1 text-2xl font-semibold text-slate-900">Roles and mailbox ownership</h2>
-          <p className="mt-2 text-sm text-slate-500">Manage internal roles, reviewers, and mailbox ownership assignments.</p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Control who manages the system and who owns each mailbox.
-          </p>
+    <div className="space-y-4">
+      <section className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm sm:p-4">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">Team</p>
+          <h2 className="truncate text-base font-semibold text-slate-900">Roles and mailbox ownership</h2>
+          <p className="mt-1 truncate text-xs text-slate-500">Manage roles, reviewers, and mailbox assignments.</p>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
+        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
           {loading ? "Updating..." : "Live"}
         </span>
       </section>
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
-      <section className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-sm">
-        <div className="px-2 pb-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">Users</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">Internal roles</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Members work inboxes, reviewers monitor, and admins manage access.
-          </p>
+      <section className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-1 pb-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">Users</p>
+            <h3 className="truncate text-sm font-semibold text-slate-900">Internal roles</h3>
+          </div>
+          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+            {users.length} users
+          </span>
         </div>
-        <div className="space-y-3">
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
           {users.map((user) => (
-            <div key={user.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 md:flex-row md:items-center md:justify-between">
-              <div>
+            <div key={user.id} className="flex flex-col gap-2 px-3 py-2.5 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                <p className="mt-1 text-xs text-slate-500">{user.email}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{user.email}</p>
               </div>
               <select
                 value={user.role}
                 onChange={(event) => void updateTeamUserRole(user.id, event.target.value as TeamUser["role"]).then(() => loadOverview()).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Failed to update role"))}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                className="h-9 rounded-lg border border-slate-200 px-3 text-sm"
               >
                 <option value="member">Member</option>
                 <option value="reviewer">Reviewer</option>
@@ -106,21 +105,23 @@ export function TeamPage({ canManage }: TeamPageProps) {
         </div>
       </section>
 
-      <section className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-sm">
-        <div className="px-2 pb-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">Mailboxes</p>
-          <h3 className="mt-1 text-lg font-semibold text-slate-900">Ownership and reviewers</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Assign a primary owner and optional reviewer for each mailbox.
-          </p>
+      <section className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-1 pb-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">Mailboxes</p>
+            <h3 className="truncate text-sm font-semibold text-slate-900">Ownership and reviewers</h3>
+          </div>
+          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+            {mailboxes.length} mailboxes
+          </span>
         </div>
-        <div className="space-y-3">
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
           {mailboxes.map((mailbox) => (
-            <div key={mailbox.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
+            <div key={mailbox.id} className="px-3 py-2.5">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{mailbox.email}</p>
-                  <p className="mt-1 text-xs text-slate-500 capitalize">{mailbox.status}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 capitalize">{mailbox.status}</p>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <select
@@ -131,7 +132,7 @@ export function TeamPage({ canManage }: TeamPageProps) {
                         reviewerUserIds: mailbox.reviewerUserIds,
                       }).then(() => loadOverview()).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Failed to update mailbox owner"))
                     }
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                    className="h-9 rounded-lg border border-slate-200 px-3 text-sm"
                   >
                     <option value="">Select owner</option>
                     {users.map((user) => (
@@ -146,7 +147,7 @@ export function TeamPage({ canManage }: TeamPageProps) {
                         reviewerUserIds: event.target.value ? [event.target.value] : [],
                       }).then(() => loadOverview()).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "Failed to update reviewers"))
                     }
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                    className="h-9 rounded-lg border border-slate-200 px-3 text-sm"
                   >
                     <option value="">No reviewer</option>
                     {users.map((user) => (
@@ -155,7 +156,7 @@ export function TeamPage({ canManage }: TeamPageProps) {
                   </select>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-slate-500">
+              <p className="mt-1.5 truncate text-xs text-slate-500">
                 Owner: {mailbox.ownerUserId ? usersById.get(mailbox.ownerUserId)?.name ?? "Unknown" : "Unassigned"}.
                 Reviewer: {mailbox.reviewerUserIds[0] ? usersById.get(mailbox.reviewerUserIds[0])?.name ?? "Unknown" : "Not assigned"}.
               </p>

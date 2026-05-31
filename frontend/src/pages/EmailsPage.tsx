@@ -220,33 +220,30 @@ export function EmailsPage({
   }
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[32px] border border-sky-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,249,255,0.94))] backdrop-blur-xl shadow-[0_20px_60px_-36px_rgba(14,116,144,0.45)] transition-all duration-200">
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-xl border border-sky-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,249,255,0.94))] shadow-[0_16px_42px_-36px_rgba(14,116,144,0.45)] backdrop-blur-xl transition-all duration-200">
 
         {/* HEADER */}
-        <div className="px-5 py-4 sm:px-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-3 px-3 py-3 sm:px-4">
 
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
             {/* Left */}
-            <div>
-              <p className="text-[10px] tracking-[0.34em] uppercase text-sky-600 font-semibold">
-                Inbox Workspace Controls
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">
+                Inbox
               </p>
-              <h2 className="mt-1 text-xl font-semibold text-slate-900 tracking-tight">
+              <h2 className="truncate text-base font-semibold tracking-tight text-slate-900">
                 Inbox workspace
               </h2>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-1 truncate text-xs text-slate-500">
                 {hasActiveFilters
-                  ? "Filters are active."
+                  ? "Filters active"
                   : "Viewing all messages."}
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">
-                Review synced emails, apply filters, and open any message to reply or inspect attachments.
-              </p>
-              <div className="mt-3">
+              <div className="mt-2">
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
                     mailPilot.loading
                       ? "bg-amber-50 text-amber-700"
                       : mailPilot.refreshing
@@ -260,14 +257,14 @@ export function EmailsPage({
             </div>
 
             {/* Right Controls */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
 
               {/* SEARCH */}
               <div
-                className={`flex items-center overflow-hidden rounded-xl border bg-white transition-all duration-200 ${
+                className={`flex items-center overflow-hidden rounded-lg border bg-white transition-all duration-200 ${
                   searchExpanded || mailPilot.search
-                    ? "w-full sm:w-[22rem] border-sky-400 shadow-md shadow-sky-100"
-                    : "w-11 border-slate-200 hover:border-slate-300"
+                    ? "w-full sm:w-72 border-sky-400 shadow-md shadow-sky-100"
+                    : "w-9 border-slate-200 hover:border-slate-300"
                 }`}
                 onMouseEnter={() => setSearchExpanded(true)}
                 onMouseLeave={() => !mailPilot.search && setSearchExpanded(false)}
@@ -279,7 +276,7 @@ export function EmailsPage({
                     setTimeout(() => searchInputRef.current?.focus(), 0);
                   }}
                   title="Search emails"
-                  className={`h-11 w-11 flex items-center justify-center transition ${
+                  className={`flex h-9 w-9 items-center justify-center transition ${
                     searchExpanded || mailPilot.search ? "text-sky-600" : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
@@ -295,7 +292,7 @@ export function EmailsPage({
                   }}
                   onBlur={() => !mailPilot.search && setSearchExpanded(false)}
                   placeholder={searchExpanded || Boolean(mailPilot.search) ? "Search messages" : ""}
-                  className={`h-11 bg-transparent pr-2 text-sm outline-none placeholder:text-slate-400 transition-all duration-200 ${
+                  className={`h-9 bg-transparent pr-2 text-sm outline-none placeholder:text-slate-400 transition-all duration-200 ${
                     searchExpanded || mailPilot.search
                       ? "w-full flex-1 opacity-100"
                       : "w-0 flex-none px-0 opacity-0 pointer-events-none"
@@ -310,7 +307,7 @@ export function EmailsPage({
                       mailPilot.setPage(1);
                     }}
                     title="Clear search"
-                    className="h-11 w-11 flex items-center justify-center text-slate-400 hover:text-slate-600 transition"
+                    className="flex h-9 w-9 items-center justify-center text-slate-400 transition hover:text-slate-600"
                   >
                     <FiX size={18} />
                   </button>
@@ -318,7 +315,7 @@ export function EmailsPage({
               </div>
 
               {/* VIEW TOGGLE */}
-              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
                 {[
                   { key: "grid" as const, icon: <FiGrid /> },
                   { key: "list" as const, icon: <FiList /> },
@@ -326,7 +323,7 @@ export function EmailsPage({
                   <button
                     key={v.key}
                     onClick={() => setViewMode(v.key)}
-                    className={`px-3 py-2 rounded-lg text-sm transition ${viewMode === v.key
+                    className={`rounded-md px-2.5 py-1.5 text-sm transition ${viewMode === v.key
                       ? "bg-slate-900 text-white shadow-sm"
                       : "text-slate-600 hover:bg-slate-50"
                       }`}
@@ -339,7 +336,7 @@ export function EmailsPage({
               {/* FILTER TOGGLE */}
               <button
                 onClick={() => setShowFilters((c) => !c)}
-                className={`h-10 w-10 flex items-center justify-center rounded-xl border transition ${showFilters
+                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${showFilters
                   ? "bg-slate-900 text-white border-slate-900"
                   : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                   }`}
@@ -351,14 +348,14 @@ export function EmailsPage({
               {hasActiveFilters ? (
                 <button
                   onClick={resetWorkspaceFilters}
-                  className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100"
+                  className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-medium text-sky-700 transition hover:bg-sky-100"
                 >
-                  Reset filters
+                  Reset
                 </button>
               ) : null}
 
               {mailPilot.selectedEmailIds.length > 0 && (
-                <span className="text-xs px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                   {mailPilot.selectedEmailIds.length} selected
                 </span>
               )}

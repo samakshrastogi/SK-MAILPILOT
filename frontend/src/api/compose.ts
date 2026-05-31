@@ -1,5 +1,5 @@
 import type { ApiEnvelope } from "./client";
-import { request } from "./client";
+import { buildQuery, request } from "./client";
 import type {
   ComposeAttachmentInput,
   ComposeRecurrence,
@@ -7,8 +7,16 @@ import type {
   ScheduledEmail,
 } from "../types/email";
 
-export async function listScheduledEmails() {
-  return request<ApiEnvelope<ScheduledEmail[]>>("/api/compose");
+export async function listScheduledEmails(options?: {
+  accountId?: string | null;
+  includeAllAccounts?: boolean;
+}) {
+  return request<ApiEnvelope<ScheduledEmail[]>>(
+    `/api/compose${buildQuery({
+      accountId: options?.accountId,
+      includeAllAccounts: options?.includeAllAccounts,
+    })}`
+  );
 }
 
 export async function createScheduledEmail(payload: {

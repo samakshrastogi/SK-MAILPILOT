@@ -5,8 +5,13 @@ import { UserModel } from "../models/user.model";
 
 export const connectDB = async () => {
   try {
+    const mongoDbName = process.env.MONGO_DB_NAME;
+    if (!mongoDbName) {
+      throw new Error("MONGO_DB_NAME is required");
+    }
+
     await mongoose.connect(process.env.MONGO_URI as string, {
-      dbName: "sk-mailpilot",
+      dbName: mongoDbName,
     });
 
     const emailCollection = EmailModel.collection;
@@ -49,7 +54,7 @@ export const connectDB = async () => {
       }
     );
     await ensureEmailNumericIds();
-    console.log("✅ MongoDB Connected (sk-mailpilot)");
+    console.log(`✅ MongoDB Connected (${mongoDbName})`);
   } catch (error) {
     console.error("❌ DB Error:", error);
     process.exit(1);

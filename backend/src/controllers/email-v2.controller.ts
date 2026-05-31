@@ -44,6 +44,7 @@ const requiredGmailReadScopes = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.modify",
 ];
+const inboxFetchLimit = 100;
 
 function hasRequiredReadScopes(scopeValue?: string | null) {
   const scopes = new Set(
@@ -113,7 +114,7 @@ const semanticSearchSchema = accountScopeSchema.extend({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
-const syncHistoryQuerySchema = z.object({
+const syncHistoryQuerySchema = accountScopeSchema.extend({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
@@ -165,18 +166,40 @@ function parseLabelIds(labelIds?: string) {
 }
 
 function getDefaultFetchMode() {
-  const fetchAll = process.env.FETCH_EMAILS_ALL?.toLowerCase() === "true";
   const configuredLimit = Number(process.env.FETCH_EMAILS_LIMIT ?? 25);
 
-  if (fetchAll) {
-    return "all" as const;
-  }
-
   if (Number.isFinite(configuredLimit) && configuredLimit > 0) {
-    return Math.floor(configuredLimit);
+    return Math.min(inboxFetchLimit, Math.floor(configuredLimit));
   }
 
   return 25;
+}
+
+function normalizeFetchLimit(maxResults?: number | "all") {
+  if (maxResults === "all") {
+    return inboxFetchLimit;
+  }
+
+  if (typeof maxResults === "number" && Number.isFinite(maxResults)) {
+    return Math.min(inboxFetchLimit, Math.max(1, Math.floor(maxResults)));
+  }
+
+  return getDefaultFetchMode();
+}
+
+function readRequestedFetchLimitFromRaw(rawValue: unknown) {
+  if (rawValue === "all") {
+    return inboxFetchLimit;
+  }
+
+  if (typeof rawValue === "string" && rawValue.trim()) {
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed)
+      ? Math.min(inboxFetchLimit, Math.max(1, Math.floor(parsed)))
+      : undefined;
+  }
+
+  return undefined;
 }
 
 async function resolveScopedAccountId(
@@ -477,7 +500,7 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
     const userId = req.auth.userId;
     startSyncProgress(userId, "Fetching inbox emails");
     const query = fetchEmailsQuerySchema.parse(req.query);
-    const requestedMaxResults = query.maxResults ?? getDefaultFetchMode();
+    const requestedMaxResults = normalizeFetchLimit(query.maxResults);
     const scopedAccountIds = await listActiveScopedAccountIds(
       userId,
       query.accountId,
@@ -492,15 +515,25 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
       return;
     }
 
-    const syncResults = await Promise.allSettled(
-      scopedAccountIds.map((scopedAccountId) =>
-        syncInboxToDatabase({
+    type InboxSyncResult = Awaited<ReturnType<typeof syncInboxToDatabase>>;
+    const syncResults: PromiseSettledResult<InboxSyncResult>[] = [];
+    let remainingFetchCount = requestedMaxResults;
+
+    for (const scopedAccountId of scopedAccountIds) {
+      if (remainingFetchCount <= 0) {
+        break;
+      }
+
+      try {
+        let accountResolvedTotal = 0;
+        const syncResult = await syncInboxToDatabase({
           userId,
           accountId: scopedAccountId,
-          maxResults: requestedMaxResults === "all" ? undefined : requestedMaxResults,
+          maxResults: remainingFetchCount,
           query: query.query,
           labelIds: parseLabelIds(query.labelIds),
           onTotalResolved: ({ totalCount }) => {
+            accountResolvedTotal = totalCount;
             if (totalCount > 0) {
               addSyncEstimatedTotal(userId, totalCount);
             }
@@ -516,9 +549,14 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
             }
           },
           onProcessed: ({ failed }) => incrementSyncProcessed(userId, failed),
-        })
-      )
-    );
+        });
+        remainingFetchCount -= Math.max(syncResult.fetchedCount, accountResolvedTotal);
+        syncResults.push({ status: "fulfilled", value: syncResult });
+      } catch (error) {
+        syncResults.push({ status: "rejected", reason: error });
+      }
+    }
+
     const successfulSyncResults = syncResults
       .filter(
         (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof syncInboxToDatabase>>> =>
@@ -635,12 +673,7 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
         status: "failed",
         labelIds: parseLabelIds(typeof req.query.labelIds === "string" ? req.query.labelIds : undefined),
         query: typeof req.query.query === "string" ? req.query.query : undefined,
-        requestedCount:
-          typeof req.query.maxResults === "string" && req.query.maxResults !== "all"
-            ? Number(req.query.maxResults)
-            : req.query.maxResults === "all"
-              ? "all"
-              : undefined,
+        requestedCount: readRequestedFetchLimitFromRaw(req.query.maxResults),
         fetchedCount: 0,
         processedCount: 0,
         skippedCount: 0,
@@ -702,8 +735,18 @@ export async function listSyncHistory(req: AuthenticatedRequest, res: Response) 
     }
 
     const query = syncHistoryQuerySchema.parse(req.query);
+    const resolvedAccountId = await resolveScopedAccountId(
+      req.auth.userId,
+      query.accountId,
+      query.includeAllAccounts ?? false
+    );
     const history = await SyncHistoryModel.find({
       userId: req.auth.userId,
+      ...(query.includeAllAccounts
+        ? {}
+        : resolvedAccountId
+          ? { accountIds: new mongoose.Types.ObjectId(resolvedAccountId) }
+          : { _id: { $exists: false } }),
     })
       .sort({ createdAt: -1 })
       .limit(query.limit)

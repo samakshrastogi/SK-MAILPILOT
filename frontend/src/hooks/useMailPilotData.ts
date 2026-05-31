@@ -38,6 +38,7 @@ type UseMailPilotDataOptions = {
 };
 
 const LAST_SYNC_STORAGE_KEY = "sk-mailpilot-last-sync";
+const INBOX_FETCH_LIMIT = 100;
 
 function normalizeEmail(email: Partial<ProcessedEmail>): ProcessedEmail {
   return {
@@ -219,6 +220,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
       setRefreshing(true);
       try {
         const response = await fetchProcessedEmailsFromScopedInbox({
+          maxResults: INBOX_FETCH_LIMIT,
           accountId: scope.accountId,
           includeAllAccounts: scope.includeAllAccounts,
         });
@@ -369,7 +371,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
     void loadFollowUps();
   }, [enabled, scope]);
 
-  async function syncInbox(mode: number | "all" | undefined = undefined) {
+  async function syncInbox(mode: number | "all" | undefined = INBOX_FETCH_LIMIT) {
     if (!enabled) {
       return;
     }
@@ -377,7 +379,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
     setSyncing(true);
     try {
       const response = await fetchProcessedEmailsFromScopedInbox({
-        maxResults: mode,
+        maxResults: mode === "all" || mode === undefined ? INBOX_FETCH_LIMIT : Math.min(mode, INBOX_FETCH_LIMIT),
         accountId: scope.accountId ?? undefined,
         includeAllAccounts: scope.includeAllAccounts,
       });

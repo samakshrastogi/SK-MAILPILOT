@@ -255,9 +255,16 @@ export async function getInboxSyncProgress() {
   return request<ApiEnvelope<SyncProgress>>("/api/email/sync-progress");
 }
 
-export async function listSyncHistory(limit = 20) {
+export async function listSyncHistory(
+  limit = 20,
+  options?: { accountId?: string | null; includeAllAccounts?: boolean }
+) {
   return request<ApiEnvelope<SyncHistoryEntry[]>>(
-    `/api/email/sync-history${buildQuery({ limit })}`
+    `/api/email/sync-history${buildQuery({
+      limit,
+      accountId: options?.accountId,
+      includeAllAccounts: options?.includeAllAccounts,
+    })}`
   );
 }
 

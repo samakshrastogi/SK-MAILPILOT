@@ -1,6 +1,7 @@
 import { UserModel } from "../models/user.model";
 import { sendEmailThroughGmail } from "./gmail.service";
 import { createNumericOtp, hashPassword, hashToken } from "../utils/auth";
+import { buildBrandedEmail } from "./email-template.service";
 
 const otpTtlMinutes = Number(process.env.EMAIL_VERIFICATION_OTP_TTL_MINUTES ?? 10);
 
@@ -15,16 +16,15 @@ function buildOtpEmail(name: string, otp: string) {
     `This code expires in ${otpTtlMinutes} minutes.`,
   ].join("\n");
 
-  const html = `
-    <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; line-height: 1.6;">
-      <p>Hi ${name},</p>
-      <p>Use this OTP to verify your MailPilot account:</p>
-      <div style="display:inline-block;padding:14px 18px;border-radius:12px;background:#0f172a;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:0.24em;">
-        ${otp}
-      </div>
-      <p style="margin-top:16px;">This code expires in ${otpTtlMinutes} minutes.</p>
-    </div>
-  `;
+  const html = buildBrandedEmail({
+    preheader: `Your MailPilot verification code expires in ${otpTtlMinutes} minutes.`,
+    eyebrow: "Account verification",
+    title: "Verify your MailPilot account",
+    greeting: `Hi ${name},`,
+    intro: "Use this one-time password to confirm your email address and finish setting up your MailPilot account.",
+    code: otp,
+    footerNote: `This code expires in ${otpTtlMinutes} minutes. Never share this code with anyone.`,
+  });
 
   return { plainText, html };
 }
@@ -94,16 +94,15 @@ function buildPasswordResetEmail(name: string, otp: string) {
     `This code expires in ${otpTtlMinutes} minutes.`,
   ].join("\n");
 
-  const html = `
-    <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; line-height: 1.6;">
-      <p>Hi ${name},</p>
-      <p>Use this OTP to reset your MailPilot password:</p>
-      <div style="display:inline-block;padding:14px 18px;border-radius:12px;background:#0f172a;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:0.24em;">
-        ${otp}
-      </div>
-      <p style="margin-top:16px;">This code expires in ${otpTtlMinutes} minutes.</p>
-    </div>
-  `;
+  const html = buildBrandedEmail({
+    preheader: `Your MailPilot password reset code expires in ${otpTtlMinutes} minutes.`,
+    eyebrow: "Password reset",
+    title: "Reset your MailPilot password",
+    greeting: `Hi ${name},`,
+    intro: "Use this one-time password to reset your MailPilot password securely.",
+    code: otp,
+    footerNote: `This code expires in ${otpTtlMinutes} minutes. If you did not request a password reset, no action is required.`,
+  });
 
   return { plainText, html };
 }

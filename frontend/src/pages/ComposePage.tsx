@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { FiEdit2, FiPaperclip, FiSend, FiTrash2, FiZap, FiX } from "react-icons/fi";
+import { FiCalendar, FiEdit2, FiPaperclip, FiSave, FiSend, FiTrash2, FiZap, FiX } from "react-icons/fi";
 
 import {
   createReplyTemplate,
@@ -24,6 +24,8 @@ import type {
 
 type ComposePageProps = {
   accounts: GmailAccount[];
+  selectedAccountId?: string | null;
+  includeAllAccounts?: boolean;
 };
 
 const COMPOSE_PREFILL_STORAGE_KEY = "sk-mailpilot-compose-prefill";
@@ -54,7 +56,8 @@ async function fileToAttachment(file: File): Promise<ComposeAttachmentInput> {
   };
 }
 
-export function ComposePage({ accounts }: ComposePageProps) {
+export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }: ComposePageProps) {
+  const defaultAccountId = selectedAccountId ?? accounts[0]?.id ?? "";
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [templates, setTemplates] = useState<ReplyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +66,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
-  const [accountId, setAccountId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>(defaultAccountId);
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
@@ -74,12 +77,15 @@ export function ComposePage({ accounts }: ComposePageProps) {
   const [scheduledAt, setScheduledAt] = useState("");
   const [recurrence, setRecurrence] = useState<ComposeRecurrence>({ frequency: "none", interval: 1 });
   const [templateName, setTemplateName] = useState("");
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
   const autosaveTimerRef = useRef<number | null>(null);
   const autosavingRef = useRef(false);
 
   function resetForm() {
     setEditingId(null);
-    setAccountId("");
+    setAccountId(defaultAccountId);
     setTo("");
     setCc("");
     setBcc("");
@@ -89,6 +95,8 @@ export function ComposePage({ accounts }: ComposePageProps) {
     setAttachments([]);
     setScheduledAt("");
     setRecurrence({ frequency: "none", interval: 1 });
+    setScheduleModalOpen(false);
+    setAttachmentModalOpen(false);
     setSubjectSuggestions([]);
   }
 
@@ -107,7 +115,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
       setLoading(true);
     }
     try {
-      const response = await listScheduledEmails();
+      const response = await listScheduledEmails({ accountId: selectedAccountId, includeAllAccounts });
       setScheduledEmails(response.data);
       setError(null);
     } catch (requestError) {
@@ -129,7 +137,13 @@ export function ComposePage({ accounts }: ComposePageProps) {
   useEffect(() => {
     void loadScheduledEmails(true);
     void loadTemplates();
-  }, []);
+  }, [selectedAccountId, includeAllAccounts]);
+
+  useEffect(() => {
+    if (!editingId) {
+      setAccountId(defaultAccountId);
+    }
+  }, [defaultAccountId, editingId]);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(COMPOSE_PREFILL_STORAGE_KEY);
@@ -159,7 +173,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
       if (event.event === "compose.updated") {
         void loadScheduledEmails();
       }
-    }, [])
+    }, [selectedAccountId, includeAllAccounts])
   );
 
   const hasDraftContent = useMemo(
@@ -303,9 +317,13 @@ export function ComposePage({ accounts }: ComposePageProps) {
       setError("Add a subject and message before saving a template");
       return;
     }
+    if (!templateName.trim()) {
+      setError("Enter a template name before saving");
+      return;
+    }
     try {
       const payload = {
-        name: templateName.trim() || subject.trim(),
+        name: templateName.trim(),
         subject: subject.trim(),
         body: body.trim(),
         tone,
@@ -320,6 +338,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
         await createReplyTemplate(payload);
       }
       setTemplateName("");
+      setTemplateModalOpen(false);
       await loadTemplates();
       setError(null);
     } catch (requestError) {
@@ -362,6 +381,18 @@ export function ComposePage({ accounts }: ComposePageProps) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function getComposeScheduleSummary() {
+    if (recurrence.frequency !== "none") {
+      return `${recurrence.frequency} x${recurrence.interval}`;
+    }
+
+    if (scheduledAt) {
+      return new Date(scheduledAt).toLocaleString();
+    }
+
+    return "Send now";
+  }
+
   function formatScheduleSummary(item: ScheduledEmail) {
     const scheduleValue = item.nextRunAt ?? item.scheduledAt ?? item.createdAt;
     const scheduleLabel =
@@ -387,46 +418,43 @@ export function ComposePage({ accounts }: ComposePageProps) {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 lg:grid-cols-[0.36fr,1.64fr]">
-        <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm transition-all duration-200">
+        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4">
 
           {/* Header */}
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">
                 Outbox
               </p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-900 tracking-tight">
-              Drafts, scheduled sends, and delivery history
+            <h2 className="truncate text-base font-semibold tracking-tight text-slate-900">
+              Drafts and scheduled emails
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              Track drafts, scheduled sends, sent items, and failures.
-            </p>
           </div>
 
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-              Auto-updating
+            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+              Live
             </span>
           </div>
 
           <div className="space-y-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">Templates</p>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-900">Smart drafts library</h3>
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-slate-900">Templates</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">Reusable message drafts</p>
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
                   {templates.length}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-100 bg-white">
                 {templates.slice(0, 5).map((template) => (
-                  <div key={template._id} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                  <div key={template._id} className="px-2.5 py-2">
                     <button type="button" onClick={() => applyTemplate(template)} className="w-full text-left">
                       <p className="truncate text-sm font-semibold text-slate-900">{template.name}</p>
-                      <p className="mt-1 line-clamp-2 text-xs text-slate-500">{template.subject}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">{template.subject}</p>
                     </button>
-                    <div className="mt-2 flex items-center justify-between text-xs">
+                    <div className="mt-1.5 flex items-center justify-between text-xs">
                       <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">{template.tone}</span>
                       <button type="button" onClick={() => void handleDeleteTemplate(template._id)} className="text-rose-600">
                         Delete
@@ -435,14 +463,14 @@ export function ComposePage({ accounts }: ComposePageProps) {
                   </div>
                 ))}
                 {!templates.length ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-xs text-slate-500">
+                  <div className="px-2.5 py-2.5 text-xs text-slate-500">
                     Save common messages as reusable templates.
                   </div>
                 ) : null}
               </div>
             </div>
             {loading ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
                 Loading scheduled emails...
               </div>
             ) : scheduledEmails.length ? (
@@ -453,9 +481,9 @@ export function ComposePage({ accounts }: ComposePageProps) {
                 return (
                   <div
                     key={item._id}
-                    className="group rounded-2xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:shadow-sm"
+                    className="group rounded-lg border border-slate-200 bg-white p-3 transition-all duration-200 hover:shadow-sm"
                   >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-900">
                           {item.subject || "Untitled email"}
@@ -466,7 +494,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
                       </div>
 
                       <span
-                        className={`whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
+                        className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
                           item.status === "sent"
                             ? "bg-emerald-100 text-emerald-700"
                             : item.status === "failed"
@@ -476,26 +504,26 @@ export function ComposePage({ accounts }: ComposePageProps) {
                                 : "bg-blue-100 text-blue-600"
                         }`}
                       >
-                        {item.status}
+                      {item.status}
                       </span>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                       <span>
                         {scheduleSummary.scheduleLabel}: {scheduleSummary.scheduleValue}
                       </span>
                       <span>{scheduleSummary.recurrenceLabel}</span>
                     </div>
 
-                    <div className="mt-3 h-px bg-slate-100" />
+                    <div className="mt-2 h-px bg-slate-100" />
 
-                    <div className="mt-2 flex justify-end gap-4">
+                    <div className="mt-2 flex justify-end gap-3">
                       {canModify ? (
                         <>
                           <button
                             type="button"
                             onClick={() => handleEdit(item)}
-                            className="inline-flex items-center gap-2 text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-600 transition-colors hover:text-sky-700"
                           >
                             <FiEdit2 className="text-base" />
                             Edit
@@ -504,7 +532,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
                           <button
                             type="button"
                             onClick={() => void handleDelete(item._id)}
-                            className="inline-flex items-center gap-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 transition-colors hover:text-rose-700"
                           >
                             <FiTrash2 className="text-base" />
                             Delete
@@ -520,110 +548,103 @@ export function ComposePage({ accounts }: ComposePageProps) {
                 );
               })
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">
                 No drafts or scheduled emails yet.
               </div>
             )}
           </div>
         </div>
 
-        <div className="order-1 rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm transition-all duration-200 lg:order-2">
+        <div className="order-1 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4 lg:order-2">
 
           {/* Header */}
-          <div className="mb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-sky-600">
-              Compose
-            </p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-900 tracking-tight">
-              Compose scheduled and one-time emails
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Drafts autosave while you type, so scheduled emails remain editable before execution.
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-400">
-              Add recipients, subject, and message, then send, schedule, or save as a template.
-            </p>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">
+                Compose
+              </p>
+              <h2 className="truncate text-base font-semibold tracking-tight text-slate-900">
+                Compose email
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTemplateName((current) => current || subject.trim());
+                setTemplateModalOpen(true);
+              }}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+            >
+              <FiSave className="text-sm" />
+              Save template
+            </button>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-2.5">
 
             {/* Account */}
+            <div className="grid gap-2.5 md:grid-cols-[0.72fr,1.28fr]">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">From</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">From</label>
               <select
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 title="Select sending account"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               >
-                <option value="">Primary connected mail</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.displayName
-                      ? `${account.displayName} (${account.email})`
-                      : account.email}
-                  </option>
-                ))}
+                {accounts.length ? (
+                  accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.email}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No connected mailboxes</option>
+                )}
               </select>
             </div>
 
             {/* Recipients */}
-            <div className="space-y-2.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">To</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">To</label>
                 <input
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
                   placeholder="recipient@example.com, another@example.com"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Cc</label>
-                  <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="cc@example.com" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Bcc</label>
-                  <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="bcc@example.com" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
-                </div>
               </div>
             </div>
 
-            {/* Subject + AI */}
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-xs font-semibold text-slate-700">Subject</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={templateName}
-                    onChange={(e) => setTemplateName(e.target.value)}
-                    placeholder="Template name"
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveTemplate()}
-                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700"
-                  >
-                    Save template
-                  </button>
+              <div className="grid gap-2.5 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">Cc</label>
+                  <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="cc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-700">Bcc</label>
+                  <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="bcc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-1.5 transition-all duration-200 hover:border-slate-300 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
+
+            {/* Subject + AI */}
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <label className="block text-xs font-semibold text-slate-700">Subject</label>
+              </div>
+              <div className="flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-2 py-0.5 transition-all duration-200 hover:border-slate-300 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100">
                 <input
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Email subject"
-                  className="flex-1 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-slate-400"
+                  className="min-w-0 flex-1 bg-transparent px-1.5 py-1 text-sm outline-none placeholder:text-slate-400"
                 />
 
                 <button
@@ -631,7 +652,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
                   onClick={() => void handleSuggestSubjects()}
                   disabled={suggesting || !body.trim()}
                   title="Suggest subject lines based on email body"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md bg-sky-50 px-2 text-xs font-medium text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <FiZap className="text-sm" />
                   {suggesting ? "Suggesting..." : "Suggest"}
@@ -641,14 +662,14 @@ export function ComposePage({ accounts }: ComposePageProps) {
 
             {/* Suggestions */}
             {subjectSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-2 p-3 bg-sky-50 rounded-xl border border-sky-200">
+              <div className="flex flex-wrap gap-1.5 rounded-lg border border-sky-200 bg-sky-50 p-2">
                 <span className="text-xs font-medium text-sky-700 w-full">Suggested subjects:</span>
                 {subjectSuggestions.map((item) => (
                   <button
                     key={item}
                     type="button"
                     onClick={() => setSubject(item)}
-                    className="rounded-full bg-white border border-sky-200 px-3 py-1 text-xs text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-all duration-150 cursor-pointer"
+                    className="cursor-pointer rounded-full border border-sky-200 bg-white px-2.5 py-0.5 text-xs text-sky-700 transition-all duration-150 hover:border-sky-300 hover:bg-sky-100"
                   >
                     {item}
                   </button>
@@ -658,7 +679,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
 
             {/* Body */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-1 flex items-center justify-between">
                 <label className="block text-xs font-semibold text-slate-700">Message</label>
                 <span className="text-xs text-slate-500">{body.length} characters</span>
               </div>
@@ -666,15 +687,15 @@ export function ComposePage({ accounts }: ComposePageProps) {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Write your email message..."
-                className="min-h-36 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 resize-none hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                className="min-h-24 w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               />
             </div>
 
             {/* Controls */}
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">Tone</label>
-                <select value={tone} onChange={(e) => setTone(e.target.value as typeof tone)} title="Email tone" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100">
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Tone</label>
+                <select value={tone} onChange={(e) => setTone(e.target.value as typeof tone)} title="Email tone" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100">
                   <option value="professional">Professional</option>
                   <option value="friendly">Friendly</option>
                   <option value="short">Short</option>
@@ -684,111 +705,49 @@ export function ComposePage({ accounts }: ComposePageProps) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">Schedule</label>
-                <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} title="Schedule send time" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" placeholder="Leave empty to send now" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">Frequency</label>
-                <select value={recurrence.frequency} onChange={(e) => setRecurrence((c) => ({ ...c, frequency: e.target.value as typeof c.frequency }))} title="Email recurrence" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition-all duration-200 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100">
-                  <option value="none">One time</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Recurrence Advanced */}
-            {recurrence.frequency !== "none" && (
-              <div className="grid md:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Interval</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={recurrence.interval}
-                    onChange={(e) => setRecurrence((c) => ({ ...c, interval: Number(e.target.value || 1) }))}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm bg-white hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all duration-200"
-                    placeholder="Interval"
-                  />
-                </div>
-
-                {recurrence.frequency === "weekly" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">Day of Week</label>
-                    <select
-                      value={recurrence.dayOfWeek ?? 1}
-                      onChange={(e) => setRecurrence((c) => ({ ...c, dayOfWeek: Number(e.target.value) }))}
-                      title="Select day of week"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm bg-white hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all duration-200"
-                    >
-                      {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
-                        <option key={d} value={i}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {recurrence.frequency === "monthly" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">Day of Month</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={recurrence.dayOfMonth ?? 1}
-                      onChange={(e) => setRecurrence((c) => ({ ...c, dayOfMonth: Number(e.target.value) }))}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm bg-white hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 outline-none transition-all duration-200"
-                      placeholder="Day of month"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Attachments */}
-            <div>
-              <label className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 px-4 py-6 text-sm text-slate-600 hover:border-sky-400 hover:bg-sky-50 cursor-pointer transition-all duration-200">
-                <FiPaperclip className="text-xl text-slate-400" />
-                <div className="text-center">
-                  <p className="font-medium text-slate-700">Add attachments</p>
-                  <p className="text-xs text-slate-500 mt-1">Click or drag files here</p>
-                </div>
-                <input type="file" multiple className="hidden" onChange={(e) => void handleFileChange(e)} />
-              </label>
-            </div>
-
-            {attachments.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-slate-700">Attachments ({attachments.length})</p>
-                {attachments.map((a, i) => (
-                  <div key={`${a.filename}-${i}`} className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm hover:bg-slate-100 transition-colors duration-150">
-                    <span className="truncate text-slate-700">
-                      {a.filename} <span className="text-xs text-slate-500">({Math.round(a.size / 1024)} KB)</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScheduleModalOpen(true)}
+                  className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                    scheduledAt || recurrence.frequency !== "none"
+                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                  title={`Schedule: ${getComposeScheduleSummary()}`}
+                >
+                  <FiCalendar />
+                  {scheduledAt || recurrence.frequency !== "none" ? (
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-sky-500" />
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachmentModalOpen(true)}
+                  className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+                    attachments.length
+                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                  title={attachments.length ? `${attachments.length} attachment${attachments.length === 1 ? "" : "s"}` : "Attachments"}
+                >
+                  <FiPaperclip />
+                  {attachments.length ? (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-[10px] font-semibold text-white">
+                      {attachments.length}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setAttachments((cur) => cur.filter((_, idx) => idx !== i))}
-                      title="Remove attachment"
-                      className="text-slate-400 hover:text-rose-500 transition-colors duration-150"
-                    >
-                      <FiX className="text-lg" />
-                    </button>
-                  </div>
-                ))}
+                  ) : null}
+                </button>
               </div>
-            )}
+            </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
+            <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-2.5">
               <button
                 type="button"
                 disabled={saving}
                 onClick={() => void handleSave(false)}
-                className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-sky-600 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-linear-to-r from-sky-600 to-sky-500 px-3.5 text-sm font-semibold text-white shadow-sm transition hover:scale-[1.02] hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <FiSend className="text-base" />
                 {saving
@@ -804,7 +763,7 @@ export function ComposePage({ accounts }: ComposePageProps) {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-all duration-150"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 transition-all duration-150 hover:bg-slate-50 active:bg-slate-100"
                 >
                   Cancel edit
                 </button>
@@ -813,6 +772,254 @@ export function ComposePage({ accounts }: ComposePageProps) {
           </div>
         </div>
       </section>
+      {scheduleModalOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.55)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-600">
+                  Schedule
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">Send timing</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScheduleModalOpen(false)}
+                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Schedule</span>
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  title="Schedule send time"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                />
+              </label>
+              <label>
+                <span className="mb-1.5 block text-xs font-semibold text-slate-700">Frequency</span>
+                <select
+                  value={recurrence.frequency}
+                  onChange={(event) =>
+                    setRecurrence((current) => ({
+                      ...current,
+                      frequency: event.target.value as typeof current.frequency,
+                    }))
+                  }
+                  title="Email recurrence"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                >
+                  <option value="none">One time</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </label>
+            </div>
+
+            {recurrence.frequency !== "none" ? (
+              <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-3">
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-700">Interval</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={recurrence.interval}
+                    onChange={(event) =>
+                      setRecurrence((current) => ({ ...current, interval: Number(event.target.value || 1) }))
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  />
+                </label>
+
+                {recurrence.frequency === "weekly" ? (
+                  <label>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Day of week</span>
+                    <select
+                      value={recurrence.dayOfWeek ?? 1}
+                      onChange={(event) =>
+                        setRecurrence((current) => ({ ...current, dayOfWeek: Number(event.target.value) }))
+                      }
+                      title="Select day of week"
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    >
+                      {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day, index) => (
+                        <option key={day} value={index}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {recurrence.frequency === "monthly" ? (
+                  <label>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Day of month</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={recurrence.dayOfMonth ?? 1}
+                      onChange={(event) =>
+                        setRecurrence((current) => ({ ...current, dayOfMonth: Number(event.target.value) }))
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setScheduledAt("");
+                  setRecurrence({ frequency: "none", interval: 1 });
+                }}
+                className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleModalOpen(false)}
+                className="inline-flex h-10 items-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {attachmentModalOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.55)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-600">
+                  Attachments
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">Files</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttachmentModalOpen(false)}
+                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <label className="mt-4 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-600 transition hover:border-sky-400 hover:bg-sky-50">
+              <FiPaperclip className="text-base text-slate-400" />
+              <span className="font-medium text-slate-700">Add attachments</span>
+              <input type="file" multiple className="hidden" onChange={(event) => void handleFileChange(event)} />
+            </label>
+
+            {attachments.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                {attachments.map((attachment, index) => (
+                  <div
+                    key={`${attachment.filename}-${index}`}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate text-slate-700">
+                      {attachment.filename}{" "}
+                      <span className="text-xs text-slate-500">({Math.round(attachment.size / 1024)} KB)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                      title="Remove attachment"
+                      className="text-slate-400 transition hover:text-rose-500"
+                    >
+                      <FiX className="text-lg" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
+                No attachments added.
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAttachmentModalOpen(false)}
+                className="inline-flex h-10 items-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {templateModalOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.55)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-600">
+                  Template
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">Save reusable email</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTemplateModalOpen(false)}
+                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                title="Close"
+              >
+                <FiX />
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Templates store the current subject, message, and tone so you can reuse common emails later from the Templates list.
+            </p>
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">Template name</span>
+              <input
+                value={templateName}
+                onChange={(event) => setTemplateName(event.target.value)}
+                placeholder="Follow-up email"
+                className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                autoFocus
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setTemplateModalOpen(false)}
+                className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveTemplate()}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700"
+              >
+                <FiSave />
+                Save template
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

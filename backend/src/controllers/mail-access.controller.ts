@@ -9,6 +9,7 @@ import { getGoogleAuthUrl } from "../services/google-oauth.service";
 import { sendEmailThroughGmail } from "../services/gmail.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { createNotification } from "../services/notification.service";
+import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { signState } from "../utils/auth";
 
 const adminEmail = (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com")
@@ -33,14 +34,26 @@ function buildApprovalEmail(name: string, requestedAccountEmail: string) {
     "Return to MailPilot and sync your inbox directly.",
   ].join("\n");
 
-  const html = `
-    <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; line-height: 1.6;">
-      <p>Hi ${name},</p>
-      <p>Your MailPilot testing request for <strong>${requestedAccountEmail}</strong> has been approved.</p>
-      <p>This mailbox is now activated in SK MailPilot.</p>
-      <p>Return to MailPilot and sync your inbox directly.</p>
-    </div>
-  `;
+  const html = buildBrandedEmail({
+    preheader: `${requestedAccountEmail} is approved and ready to sync in MailPilot.`,
+    eyebrow: "Mailbox approved",
+    title: "Your mailbox access is ready",
+    greeting: `Hi ${name},`,
+    intro: `Your MailPilot testing request for ${requestedAccountEmail} has been approved.`,
+    body: [
+      "This mailbox is now activated in SK MailPilot.",
+      "Return to MailPilot to connect the mailbox if needed, then run Sync inbox to bring messages into your workspace.",
+    ],
+    details: [
+      { label: "Mailbox", value: requestedAccountEmail },
+      { label: "Status", value: "Approved" },
+    ],
+    action: {
+      label: "Open MailPilot",
+      url: buildAppUrl("/emails"),
+    },
+    footerNote: "Access is limited to the approved mailbox shown above.",
+  });
 
   return { plainText, html };
 }

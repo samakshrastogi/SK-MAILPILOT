@@ -49,6 +49,11 @@ type GmailAccountContext = {
 };
 
 const gmailApiTimeoutMs = Number(process.env.GMAIL_API_TIMEOUT_MS ?? 20000);
+const configuredGmailFetchMaxResults = Number(process.env.GMAIL_FETCH_MAX_RESULTS ?? 100);
+const gmailFetchMaxResults =
+  Number.isFinite(configuredGmailFetchMaxResults) && configuredGmailFetchMaxResults > 0
+    ? Math.min(100, Math.floor(configuredGmailFetchMaxResults))
+    : 100;
 const gmailMessageFetchConcurrency = Math.max(
   1,
   Number(process.env.GMAIL_MESSAGE_FETCH_CONCURRENCY ?? 20)
@@ -493,7 +498,7 @@ export async function fetchEmailsFromGmail(
   const messageRefs: gmail_v1.Schema$Message[] = [];
   let nextPageToken = parsedOptions.pageToken;
   let pageCount = 0;
-  const targetCount = parsedOptions.maxResults;
+  const targetCount = Math.min(parsedOptions.maxResults ?? gmailFetchMaxResults, gmailFetchMaxResults);
 
   do {
     const remaining = typeof targetCount === "number" ? targetCount - messageRefs.length : 100;

@@ -18,10 +18,8 @@ import {
   markNotificationRead,
 } from "./api/notifications";
 import {
-  approveMailAccessRequest,
   listMyMailAccessRequests,
   listMailAccessRequests,
-  rejectMailAccessRequest,
   startMailAccessRequest,
 } from "./api/mail-access";
 import { ApiRequestError, getAuthToken, getStoredAuthUser, setAuthToken, setStoredAuthUser } from "./api/client";
@@ -91,20 +89,41 @@ function readStoredOauthResult() {
   }
 }
 
-function formatSyncDuration(durationMs: number) {
-  if (durationMs < 1000) {
-    return `${durationMs} ms`;
-  }
-
-  return `${(durationMs / 1000).toFixed(1)} s`;
-}
-
 function getVisibleProcessedCount(syncProgress: SyncProgress | null) {
   if (!syncProgress) {
     return 0;
   }
 
   return syncProgress.processedCount + syncProgress.skippedCount;
+}
+
+function getSyncDisplayProgress(input: {
+  syncing: boolean;
+  syncProgress: SyncProgress | null;
+  lastSyncResult: ReturnType<typeof useMailPilotData>["lastSyncResult"];
+}) {
+  const processedCount = input.syncing
+    ? getVisibleProcessedCount(input.syncProgress)
+    : (input.lastSyncResult?.processedCount ?? 0) + (input.lastSyncResult?.skippedCount ?? 0);
+
+  const totalCount = input.syncing
+    ? input.syncProgress?.totalEstimated ?? 0
+    : input.syncProgress?.totalEstimated ??
+      input.lastSyncResult?.fetchedCount ??
+      processedCount + (input.lastSyncResult?.failedCount ?? 0);
+
+  const percentage =
+    totalCount > 0
+      ? Math.max(0, Math.min(100, Math.round((processedCount / totalCount) * 100)))
+      : input.syncing
+        ? 0
+        : 100;
+
+  return {
+    processedCount,
+    totalCount,
+    percentage,
+  };
 }
 
 function getNotificationTargetRoute(notification: AppNotification) {
@@ -145,7 +164,7 @@ export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredAuthUser<AuthUser>());
   const [accounts, setAccounts] = useState<GmailAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [includeAllAccounts, setIncludeAllAccounts] = useState(false);
+  const [includeAllAccounts, setIncludeAllAccounts] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [, setConnectingAccount] = useState(false);
@@ -160,11 +179,11 @@ export default function App() {
   const [adminPendingMailAccessCount, setAdminPendingMailAccessCount] = useState(0);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
-  const [fetchSelection, setFetchSelection] = useState("primary");
+  const [fetchSelection, setFetchSelection] = useState("all");
   const [syncOverlayVisible, setSyncOverlayVisible] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [partialSyncRefreshDone, setPartialSyncRefreshDone] = useState(false);
-  const lastPresentedSyncAtRef = useRef<string | null>(null);
+  const syncCompletionHideTimerRef = useRef<number | null>(null);
   const isMailAccessAdmin = authUser?.email.trim().toLowerCase() === MAIL_ACCESS_ADMIN_EMAIL;
   const canViewAuditCenter = authUser?.role === "admin" || authUser?.role === "reviewer";
   const canManageTeam = authUser?.role === "admin";
@@ -212,11 +231,51 @@ export default function App() {
 
   const mailPilot = useMailPilotData(scope);
 
-  useEffect(() => {
-    if (!lastPresentedSyncAtRef.current && mailPilot.lastSyncAt) {
-      lastPresentedSyncAtRef.current = mailPilot.lastSyncAt;
+  function handleAccountScopeChange(value: string) {
+    if (value === "all") {
+      setIncludeAllAccounts(true);
+      setSelectedAccountId(null);
+    } else {
+      setIncludeAllAccounts(false);
+      setSelectedAccountId(value);
     }
-  }, [mailPilot.lastSyncAt]);
+
+    mailPilot.setPage(1);
+    mailPilot.setSenderFilter("all");
+    mailPilot.setCategoryFilter("all");
+    mailPilot.setPriorityFilter("all");
+    mailPilot.setPendingOnly(false);
+    mailPilot.setSelectedEmailIds([]);
+    mailPilot.setSelectionMode(false);
+  }
+
+  useEffect(() => {
+    if (!selectedAccountId || accounts.some((account) => account.id === selectedAccountId)) {
+      return;
+    }
+
+    setSelectedAccountId(null);
+    setIncludeAllAccounts(true);
+  }, [accounts, selectedAccountId]);
+
+  function hideSyncOverlaySoon(delayMs = 2200) {
+    if (syncCompletionHideTimerRef.current) {
+      window.clearTimeout(syncCompletionHideTimerRef.current);
+    }
+
+    syncCompletionHideTimerRef.current = window.setTimeout(() => {
+      setSyncOverlayVisible(false);
+      syncCompletionHideTimerRef.current = null;
+    }, delayMs);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (syncCompletionHideTimerRef.current) {
+        window.clearTimeout(syncCompletionHideTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadOwnMailAccessRequests = useCallback(async () => {
     try {
@@ -297,10 +356,12 @@ export default function App() {
           try {
             const accountsResponse = await listGmailAccounts();
             setAccounts(accountsResponse.data);
-            setSelectedAccountId(accountsResponse.data.find((account) => account.isPrimary)?.id ?? null);
+            setSelectedAccountId(null);
+            setIncludeAllAccounts(true);
           } catch {
             setAccounts([]);
             setSelectedAccountId(null);
+            setIncludeAllAccounts(true);
           }
           setFetchModalOpen(false);
           setMailAccessModalOpen(false);
@@ -316,11 +377,13 @@ export default function App() {
               listMyMailAccessRequests(),
             ]);
             setAccounts(accountsResponse.data);
-            setSelectedAccountId(accountsResponse.data.find((account) => account.isPrimary)?.id ?? null);
+            setSelectedAccountId(null);
+            setIncludeAllAccounts(true);
             setMailAccessRequests(requestsResponse.data);
           } catch {
             setAccounts([]);
             setSelectedAccountId(null);
+            setIncludeAllAccounts(true);
           }
           setFetchModalOpen(false);
           setMailAccessModalOpen(true);
@@ -367,6 +430,10 @@ export default function App() {
       return;
     }
 
+    if (syncCompletionHideTimerRef.current) {
+      window.clearTimeout(syncCompletionHideTimerRef.current);
+      syncCompletionHideTimerRef.current = null;
+    }
     setSyncOverlayVisible(true);
     void getInboxSyncProgress()
       .then((response) => setSyncProgress(response.data))
@@ -404,12 +471,10 @@ export default function App() {
     if (
       !lastSyncResult ||
       mailPilot.syncing ||
-      !mailPilot.lastSyncAt ||
-      lastPresentedSyncAtRef.current === mailPilot.lastSyncAt
+      !mailPilot.lastSyncAt
     ) {
       return;
     }
-    lastPresentedSyncAtRef.current = mailPilot.lastSyncAt;
 
     setSyncProgress((current) => ({
       userId: current?.userId ?? authUser?.id ?? "",
@@ -432,13 +497,7 @@ export default function App() {
     }));
     setSyncOverlayVisible(true);
     void fetchNotifications(setNotifications);
-    const timer = window.setTimeout(() => {
-      setSyncOverlayVisible(false);
-    }, 2200);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
+    hideSyncOverlaySoon();
   }, [authUser?.id, mailPilot.lastSyncAt, mailPilot.lastSyncResult, mailPilot.syncing]);
 
   useEffect(() => {
@@ -463,7 +522,12 @@ export default function App() {
 
         if (event.event === "sync.progress") {
           setSyncProgress(event.data);
-          setSyncOverlayVisible(event.data.status === "running" || event.data.status === "completed");
+          const isRunning = event.data.status === "running";
+          const isCompleted = event.data.status === "completed";
+          setSyncOverlayVisible(isRunning || isCompleted);
+          if (isCompleted) {
+            hideSyncOverlaySoon();
+          }
           return;
         }
 
@@ -533,9 +597,8 @@ export default function App() {
         }
 
         setAccounts(accountsResponse.data);
-        const primaryAccount = accountsResponse.data.find((account) => account.isPrimary);
-        setSelectedAccountId(primaryAccount?.id ?? null);
-        setIncludeAllAccounts(false);
+        setSelectedAccountId(null);
+        setIncludeAllAccounts(true);
         setAuthError(null);
         const accessResponse = await listMyMailAccessRequests();
         if (!cancelled) {
@@ -591,12 +654,13 @@ export default function App() {
     try {
       const accountsResponse = await listGmailAccounts();
       setAccounts(accountsResponse.data);
-      setSelectedAccountId(accountsResponse.data.find((account) => account.isPrimary)?.id ?? null);
+      setSelectedAccountId(null);
+      setIncludeAllAccounts(true);
     } catch {
       setAccounts([]);
       setSelectedAccountId(null);
+      setIncludeAllAccounts(true);
     }
-    setIncludeAllAccounts(false);
     setPendingVerificationEmail(null);
     setPendingPasswordResetEmail(null);
     setMailAccessRequestMessage(null);
@@ -658,11 +722,11 @@ export default function App() {
             listMyMailAccessRequests(),
           ]);
           setAccounts(accountsResponse.data);
-          setSelectedAccountId(
-            accountsResponse.data.find((account) => account.email.trim().toLowerCase() === normalizedEmail)?.id ??
-              accountsResponse.data.find((account) => account.isPrimary)?.id ??
-              null
+          const matchingAccount = accountsResponse.data.find(
+            (account) => account.email.trim().toLowerCase() === normalizedEmail
           );
+          setSelectedAccountId(matchingAccount?.id ?? null);
+          setIncludeAllAccounts(!matchingAccount);
           setMailAccessRequests(requestsResponse.data);
         } catch {
           // Leave current UI state if refresh fails; the direct connect action remains available.
@@ -789,12 +853,6 @@ export default function App() {
       return;
     }
 
-    if (value === "primary") {
-      setIncludeAllAccounts(false);
-      setSelectedAccountId(null);
-      return;
-    }
-
     setIncludeAllAccounts(false);
     setSelectedAccountId(value);
   }
@@ -822,7 +880,7 @@ export default function App() {
       return;
     }
 
-    setFetchSelection(includeAllAccounts ? "all" : selectedAccountId ?? "primary");
+    setFetchSelection(includeAllAccounts ? "all" : selectedAccountId ?? "all");
     setFetchModalOpen(true);
   }
 
@@ -924,7 +982,7 @@ export default function App() {
     setAuthUser(null);
     setAccounts([]);
     setSelectedAccountId(null);
-    setIncludeAllAccounts(false);
+    setIncludeAllAccounts(true);
     setPendingVerificationEmail(null);
     setPendingPasswordResetEmail(null);
     setFetchModalOpen(false);
@@ -989,32 +1047,6 @@ export default function App() {
       setNotifications(response.data);
     } catch {
       // Polling reconciles later.
-    }
-  }
-
-  async function handleApproveNotificationRequest(requestId: string) {
-    try {
-      await approveMailAccessRequest(requestId);
-      await Promise.all([
-        fetchNotifications(setNotifications),
-        loadAdminMailAccessSummary(),
-        loadOwnMailAccessRequests(),
-      ]);
-    } catch {
-      // Polling and manual requests page will reconcile later.
-    }
-  }
-
-  async function handleRejectNotificationRequest(requestId: string) {
-    try {
-      await rejectMailAccessRequest(requestId);
-      await Promise.all([
-        fetchNotifications(setNotifications),
-        loadAdminMailAccessSummary(),
-        loadOwnMailAccessRequests(),
-      ]);
-    } catch {
-      // Polling and manual requests page will reconcile later.
     }
   }
 
@@ -1108,9 +1140,9 @@ export default function App() {
     ) : route === "sender-insights" ? (
       <SenderInsightsPage accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
     ) : route === "sync-history" ? (
-      <SyncHistoryPage />
+      <SyncHistoryPage accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
     ) : route === "compose" ? (
-      <ComposePage accounts={accounts} />
+      <ComposePage accounts={accounts} selectedAccountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
     ) : route === "chatbot" ? (
       <ChatbotPage
         mailPilot={mailPilot}
@@ -1126,8 +1158,13 @@ export default function App() {
     ) : route === "tutorial" ? (
       <TutorialPage />
     ) : (
-      <DashboardPage mailPilot={mailPilot} syncProgress={syncProgress} />
+      <DashboardPage mailPilot={mailPilot} accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
     );
+  const syncDisplayProgress = getSyncDisplayProgress({
+    syncing: mailPilot.syncing,
+    syncProgress,
+    lastSyncResult: mailPilot.lastSyncResult,
+  });
 
   return (
     <AppShell
@@ -1144,8 +1181,10 @@ export default function App() {
       unreadNotificationCount={unreadNotificationCount}
       onReadNotification={(notification) => void handleReadNotification(notification)}
       onReadAllNotifications={() => void handleReadAllNotifications()}
-      onApproveNotificationRequest={isMailAccessAdmin ? (requestId) => void handleApproveNotificationRequest(requestId) : undefined}
-      onRejectNotificationRequest={isMailAccessAdmin ? (requestId) => void handleRejectNotificationRequest(requestId) : undefined}
+      accounts={accounts}
+      selectedAccountId={selectedAccountId}
+      includeAllAccounts={includeAllAccounts}
+      onAccountScopeChange={handleAccountScopeChange}
       pendingMailAccessCount={pendingApprovalCount}
     >
       {mailPilot.error ? <div className="error-banner">{mailPilot.error}</div> : null}
@@ -1159,24 +1198,17 @@ export default function App() {
                 {mailPilot.syncing ? "Syncing inbox..." : "Sync complete"}
             </h3>
             <p className="mt-3 text-3xl font-bold text-slate-900">
-              {mailPilot.syncing
-                ? `${syncProgress?.percentage ?? 0}%`
-                : "100%"}
+              {syncDisplayProgress.percentage}%
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {mailPilot.syncing
-                ? `${getVisibleProcessedCount(syncProgress)} processed of ${syncProgress?.totalEstimated ?? 0}`
-                : `${(mailPilot.lastSyncResult?.processedCount ?? 0) + (mailPilot.lastSyncResult?.skippedCount ?? 0)} processed of ${syncProgress?.totalEstimated ?? mailPilot.lastSyncResult?.fetchedCount ?? 0}`}
+              {syncDisplayProgress.processedCount} processed of {syncDisplayProgress.totalCount}
             </p>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300"
-                style={{ width: `${mailPilot.syncing ? syncProgress?.percentage ?? 0 : 100}%` }}
+                style={{ width: `${syncDisplayProgress.percentage}%` }}
               />
             </div>
-            <p className="mt-4 text-sm text-slate-600">
-              Time taken: {formatSyncDuration(syncProgress?.durationMs ?? mailPilot.lastSyncResult?.fetchDurationMs ?? 0)}
-            </p>
           </div>
         </div>
       ) : null}
@@ -1187,7 +1219,7 @@ export default function App() {
         selectedValue={fetchSelection}
         loading={mailPilot.syncing}
         onClose={() => setFetchModalOpen(false)}
-        onChangeSelection={setFetchSelection}
+        onChangeSelection={applyFetchSelection}
         onAddMail={() => {
           setFetchModalOpen(false);
           if (approvedMailRequests.length) {

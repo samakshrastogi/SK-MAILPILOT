@@ -45,7 +45,7 @@ export function FetchInboxModal({
               Choose a mailbox
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Sync one mailbox, the primary mailbox, or all connected mailboxes.
+              Sync up to 100 emails total from all emails or one connected Gmail ID.
             </p>
           </div>
           {!loading ? (
@@ -68,12 +68,10 @@ export function FetchInboxModal({
               disabled={loading}
               className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             >
-              <option value="all">All mailboxes</option>
-              <option value="primary">Primary mailbox</option>
+              <option value="all">All emails</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.displayName ? `${account.displayName} (${account.email})` : account.email}
-                  {account.isPrimary ? " (Primary)" : ""}
+                  {account.email}
                 </option>
               ))}
             </select>
