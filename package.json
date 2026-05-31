@@ -1,0 +1,12 @@
+{
+  "name": "sk-mailpilot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix backend ci --include=dev && npm --prefix backend run build",
+    "start": "npm --prefix backend start"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

@@ -23,10 +23,18 @@ function getUserInitials(name: string) {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-const baseNavItems: Array<{ route: AppRoute; label: string; icon: typeof FiGrid }> = [
+const navItemsConfig: Array<{
+  route: AppRoute;
+  label: string;
+  icon: typeof FiGrid;
+  accessRequired?: "requests" | "audit" | "team";
+}> = [
   { route: "dashboard", label: "Overview", icon: FiGrid },
   { route: "emails", label: "Emails", icon: FiMail },
   { route: "compose", label: "Compose", icon: FiSend },
+  { route: "mail-access", label: "Request", icon: FiShield, accessRequired: "requests" },
+  { route: "audit-center", label: "Audit", icon: FiShield, accessRequired: "audit" },
+  { route: "team", label: "Team", icon: FiUsers, accessRequired: "team" },
 ];
 
 type AppShellProps = {
@@ -75,12 +83,14 @@ export function AppShell({
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
-  const navItems = [
-    ...baseNavItems,
-    ...(canViewMailAccessRequests ? [{ route: "mail-access" as AppRoute, label: "Requests", icon: FiShield }] : []),
-    ...(canViewAuditCenter ? [{ route: "audit-center" as AppRoute, label: "Audit", icon: FiShield }] : []),
-    ...(canManageTeam ? [{ route: "team" as AppRoute, label: "Team", icon: FiUsers }] : []),
-  ];
+  const navItems = navItemsConfig.map((item) => {
+    const locked =
+      (item.accessRequired === "requests" && !canViewMailAccessRequests) ||
+      (item.accessRequired === "audit" && !canViewAuditCenter) ||
+      (item.accessRequired === "team" && !canManageTeam);
+
+    return { ...item, locked };
+  });
 
   useEffect(() => {
     setAvatarBroken(false);
@@ -110,11 +120,11 @@ export function AppShell({
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900">
 
       {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-lg shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-4">
+      <div className="sticky top-0 z-50 shadow-sm">
+        <header className="border-b border-slate-200 bg-white/85 backdrop-blur-lg">
+          <div className="mx-auto max-w-7xl px-4 py-4">
 
-          {/* TOP BAR */}
-          <div>
+            {/* TOP BAR */}
             <div className="flex items-center justify-between gap-2">
 
               {/* LEFT: LOGO + NAME */}
@@ -144,37 +154,6 @@ export function AppShell({
                   </h1>
                 </div>
               </div>
-              {/* NAVIGATION - Hidden on mobile, shown on lg */}
-              <div className="hidden lg:flex justify-center">
-                <div className="flex gap-1.5 overflow-x-auto bg-slate-100/60 p-1.5 rounded-xl">
-
-                  {navItems.map(({ route: r, label, icon: Icon }) => {
-                    const active = route === r;
-
-                    return (
-                      <button
-                        key={r}
-                        onClick={() => navigate(r)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200 font-medium
-              ${active
-                            ? "bg-white shadow-md text-slate-900 scale-100"
-                            : "text-slate-600 hover:bg-white/60 hover:text-slate-900 hover:scale-105"
-                          }`}
-                      >
-                        <Icon className="text-[15px]" />
-                        {label}
-                        {label === "Requests" && pendingMailAccessCount > 0 ? (
-                          <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            {pendingMailAccessCount}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-
-                </div>
-              </div>
-
               {/* RIGHT: ACTIONS */}
               <div className="flex items-center gap-2">
 
@@ -331,40 +310,45 @@ export function AppShell({
                 </div>
               </div>
             </div>
+          </div>
+        </header>
 
-            {/* NAVIGATION - Mobile: new row below */}
-            <div className="lg:hidden w-full mt-4 pt-3 border-t border-slate-100 flex justify-start">
-              <div className="flex gap-1.5 overflow-x-auto bg-slate-100/60 p-1.5 rounded-xl w-full">
+        {/* NAVIGATION */}
+        <nav className="border-b border-slate-200 bg-slate-50/90 backdrop-blur-lg" aria-label="Primary">
+          <div className="mx-auto flex max-w-7xl justify-center px-4 py-3">
+            <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-2xl bg-white/90 p-1.5 shadow-inner ring-1 ring-slate-200/80">
 
-                {navItems.map(({ route: r, label, icon: Icon }) => {
-                  const active = route === r;
+              {navItems.map(({ route: r, label, icon: Icon, locked }) => {
+                const active = route === r;
 
-                  return (
-                    <button
-                      key={r}
-                      onClick={() => navigate(r)}
-                      className={`flex min-w-fit items-center gap-2 px-3 py-2.5 rounded-lg text-xs sm:text-sm whitespace-nowrap transition-all duration-200 font-medium min-h-10
+                return (
+                  <button
+                    key={r}
+                    onClick={() => navigate(r)}
+                    title={locked ? "Access is restricted for this section" : undefined}
+                    className={`flex min-w-fit items-center gap-2 px-3 py-2.5 sm:px-4 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all duration-200 font-medium min-h-10
             ${active
-                          ? "bg-white shadow-md text-slate-900"
-                          : "text-slate-600 hover:bg-white/60 hover:text-slate-900 active:bg-slate-200"
-                        }`}
-                    >
-                      <Icon className="text-[16px] flex-shrink-0" />
-                      <span>{label}</span>
-                      {label === "Requests" && pendingMailAccessCount > 0 ? (
-                        <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                          {pendingMailAccessCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                        ? "bg-slate-900 shadow-md text-white"
+                        : locked
+                          ? "text-slate-400 hover:bg-slate-50 hover:text-slate-600 active:bg-slate-100"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
+                      }`}
+                  >
+                    <Icon className="text-[16px] flex-shrink-0" />
+                    <span>{label}</span>
+                    {r === "mail-access" && pendingMailAccessCount > 0 ? (
+                      <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {pendingMailAccessCount}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
 
-              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </nav>
+      </div>
 
       {/* MAIN */}
       <main className="mx-auto max-w-7xl px-4 py-6">
