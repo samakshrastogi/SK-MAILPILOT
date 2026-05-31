@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiMail, FiRefreshCcw, FiX } from "react-icons/fi";
 
 import {
   forgotPassword,
@@ -150,6 +151,94 @@ function getNotificationTargetRoute(notification: AppNotification) {
   return "dashboard" as const;
 }
 
+type FirstSyncPromptProps = {
+  open: boolean;
+  userEmail: string;
+  approvedMailCount: number;
+  pendingMailCount: number;
+  onClose: () => void;
+  onSyncMail: () => void;
+};
+
+function FirstSyncPrompt({
+  open,
+  userEmail,
+  approvedMailCount,
+  pendingMailCount,
+  onClose,
+  onSyncMail,
+}: FirstSyncPromptProps) {
+  if (!open) {
+    return null;
+  }
+
+  const promptText =
+    approvedMailCount > 0
+      ? "An approved mailbox is waiting. Connect it now, then run your first inbox sync."
+      : pendingMailCount > 0
+        ? "Your mailbox request is waiting for approval. Open the mail flow to review the next step."
+        : "Connect or request Gmail access so MailPilot can fetch your inbox and build your workspace.";
+
+  return (
+    <div
+      className="fixed inset-0 z-[88] flex items-center justify-center bg-slate-950/55 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)] sm:p-6"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+              <FiMail />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600">
+                First sync
+              </p>
+              <h2 className="mt-1 text-xl font-semibold leading-tight text-slate-900">
+                Sync your mail
+              </h2>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close sync prompt"
+          >
+            <FiX />
+          </button>
+        </div>
+
+        <p className="mt-4 text-sm leading-6 text-slate-600">{promptText}</p>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+          <span className="font-medium text-slate-900">Login:</span> {userEmail}
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onSyncMail}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            <FiRefreshCcw />
+            Sync mail
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 async function fetchNotifications(setNotifications: (notifications: AppNotification[]) => void) {
   try {
     const response = await listNotifications();
@@ -180,6 +269,7 @@ export default function App() {
   const [adminPendingMailAccessCount, setAdminPendingMailAccessCount] = useState(0);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
+  const [firstSyncPromptOpen, setFirstSyncPromptOpen] = useState(false);
   const [fetchSelection, setFetchSelection] = useState("all");
   const [syncOverlayVisible, setSyncOverlayVisible] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
@@ -188,6 +278,12 @@ export default function App() {
   const isMailAccessAdmin = authUser?.email.trim().toLowerCase() === MAIL_ACCESS_ADMIN_EMAIL;
   const canViewAuditCenter = authUser?.role === "admin" || authUser?.role === "reviewer";
   const canManageTeam = authUser?.role === "admin";
+  const visibleRoute =
+    (route === "mail-access" && !isMailAccessAdmin) ||
+    (route === "audit-center" && !canViewAuditCenter) ||
+    (route === "team" && !canManageTeam)
+      ? "dashboard"
+      : route;
   const connectedAccountEmails = useMemo(
     () => new Set(accounts.map((account) => account.email.trim().toLowerCase())),
     [accounts]
@@ -357,6 +453,7 @@ export default function App() {
           try {
             const accountsResponse = await listGmailAccounts();
             setAccounts(accountsResponse.data);
+            setFirstSyncPromptOpen(false);
             setSelectedAccountId(null);
             setIncludeAllAccounts(true);
           } catch {
@@ -655,10 +752,12 @@ export default function App() {
     try {
       const accountsResponse = await listGmailAccounts();
       setAccounts(accountsResponse.data);
+      setFirstSyncPromptOpen(accountsResponse.data.length === 0);
       setSelectedAccountId(null);
       setIncludeAllAccounts(true);
     } catch {
       setAccounts([]);
+      setFirstSyncPromptOpen(false);
       setSelectedAccountId(null);
       setIncludeAllAccounts(true);
     }
@@ -701,6 +800,16 @@ export default function App() {
     }
     setMailAccessRequestMessage(null);
     setMailAccessRequestedEmail((current) => current || authUser?.email || "");
+  }
+
+  function handleFirstSyncPromptAction() {
+    setFirstSyncPromptOpen(false);
+    setMailAccessModalOpen(true);
+    setMailAccessError(null);
+    setMailAccessRequestMessage(null);
+    setMailAccessRequestedEmail(
+      approvedMailRequests[0]?.requestedAccountEmail || mailAccessRequestedEmail || authUser?.email || ""
+    );
   }
 
   function handleRequestedEmailChange(value: string) {
@@ -995,6 +1104,7 @@ export default function App() {
     setAdminPendingMailAccessCount(0);
     setNotifications([]);
     setSyncProgress(null);
+    setFirstSyncPromptOpen(false);
     window.location.hash = "";
   }
 
@@ -1129,7 +1239,7 @@ export default function App() {
   }
 
   const page =
-    route === "emails" ? (
+    visibleRoute === "emails" ? (
       <EmailsPage
         mailPilot={mailPilot}
         onBulkDelete={() => void mailPilot.runBulkAction("delete")}
@@ -1138,25 +1248,25 @@ export default function App() {
         onBulkUnread={() => void mailPilot.runBulkAction("unread")}
         onBulkReply={() => void mailPilot.runBulkAction("generate-reply")}
       />
-    ) : route === "sender-insights" ? (
+    ) : visibleRoute === "sender-insights" ? (
       <SenderInsightsPage accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
-    ) : route === "sync-history" ? (
+    ) : visibleRoute === "sync-history" ? (
       <SyncHistoryPage accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
-    ) : route === "compose" ? (
+    ) : visibleRoute === "compose" ? (
       <ComposePage accounts={accounts} selectedAccountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
-    ) : route === "chatbot" ? (
+    ) : visibleRoute === "chatbot" ? (
       <ChatbotPage
         mailPilot={mailPilot}
         onClose={() => navigate("dashboard")}
         onSubmitRequest={handleChatAssistantRequest}
       />
-    ) : route === "mail-access" ? (
+    ) : visibleRoute === "mail-access" ? (
       <MailAccessRequestsPage canView={isMailAccessAdmin} />
-    ) : route === "audit-center" ? (
+    ) : visibleRoute === "audit-center" ? (
       <AuditCenterPage canView={canViewAuditCenter} />
-    ) : route === "team" ? (
+    ) : visibleRoute === "team" ? (
       <TeamPage canManage={canManageTeam} />
-    ) : route === "tutorial" ? (
+    ) : visibleRoute === "tutorial" ? (
       <TutorialPage />
     ) : (
       <DashboardPage mailPilot={mailPilot} accountId={scope.accountId} includeAllAccounts={scope.includeAllAccounts} />
@@ -1169,7 +1279,7 @@ export default function App() {
 
   return (
     <AppShell
-      route={route}
+      route={visibleRoute}
       navigate={navigate}
       onRefresh={() => void handleRefresh()}
       refreshing={mailPilot.refreshing}
@@ -1214,6 +1324,14 @@ export default function App() {
         </div>
       ) : null}
       {page}
+      <FirstSyncPrompt
+        open={firstSyncPromptOpen && !mailAccessModalOpen && !fetchModalOpen}
+        userEmail={authUser.email}
+        approvedMailCount={approvedMailRequests.length}
+        pendingMailCount={pendingMailRequests.length}
+        onClose={() => setFirstSyncPromptOpen(false)}
+        onSyncMail={handleFirstSyncPromptAction}
+      />
       <FetchInboxModal
         open={fetchModalOpen}
         accounts={accounts}
@@ -1230,7 +1348,7 @@ export default function App() {
         }}
         onConfirm={() => void handleConfirmFetch()}
       />
-      {route !== "chatbot" ? (
+      {visibleRoute !== "chatbot" ? (
         <FloatingChatbot
           mailPilot={mailPilot}
           onOpenFullscreen={() => navigate("chatbot")}

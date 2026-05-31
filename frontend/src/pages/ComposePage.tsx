@@ -417,8 +417,8 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-[0.36fr,1.64fr]">
-        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4">
+      <section className="grid gap-4">
+        <div className="order-2 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4">
 
           {/* Header */}
           <div className="mb-2.5 flex items-center justify-between gap-3">
@@ -555,7 +555,7 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
           </div>
         </div>
 
-        <div className="order-1 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4 lg:order-2">
+        <div className="order-1 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm transition-all duration-200 sm:p-4">
 
           {/* Header */}
           <div className="mb-2 flex items-center justify-between gap-3">

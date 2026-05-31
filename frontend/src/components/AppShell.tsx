@@ -91,13 +91,17 @@ export function AppShell({
   const profileRef = useRef<HTMLDivElement | null>(null);
   const accountScopeRef = useRef<HTMLDivElement | null>(null);
 
-  const navItems = navItemsConfig.map((item) => {
-    const locked =
-      (item.accessRequired === "requests" && !canViewMailAccessRequests) ||
-      (item.accessRequired === "audit" && !canViewAuditCenter) ||
-      (item.accessRequired === "team" && !canManageTeam);
-
-    return { ...item, locked };
+  const navItems = navItemsConfig.filter((item) => {
+    if (item.accessRequired === "requests") {
+      return canViewMailAccessRequests;
+    }
+    if (item.accessRequired === "audit") {
+      return canViewAuditCenter;
+    }
+    if (item.accessRequired === "team") {
+      return canManageTeam;
+    }
+    return true;
   });
 
   useEffect(() => {
@@ -339,24 +343,22 @@ export function AppShell({
         <section className="relative z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur-lg">
           <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-2 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
             <nav
-              className="grid w-full grid-cols-6 gap-1 rounded-xl bg-white/90 p-1 shadow-inner ring-1 ring-slate-200/80 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 lg:w-auto lg:min-w-0"
+              className="grid w-full gap-1 rounded-xl bg-white/90 p-1 shadow-inner ring-1 ring-slate-200/80 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 lg:w-auto lg:min-w-0"
+              style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
               aria-label="Primary"
             >
 
-              {navItems.map(({ route: r, label, icon: Icon, locked }) => {
+              {navItems.map(({ route: r, label, icon: Icon }) => {
                 const active = route === r;
 
                 return (
                   <button
                     key={r}
                     onClick={() => navigate(r)}
-                    title={locked ? "Access is restricted for this section" : undefined}
                     className={`flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-xs font-medium transition-all duration-200 sm:min-h-10 sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2.5 lg:px-4
             ${active
                         ? "bg-slate-900 shadow-md text-white"
-                        : locked
-                          ? "text-slate-400 hover:bg-slate-50 hover:text-slate-600 active:bg-slate-100"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
                       }`}
                   >
                     <Icon className="text-[15px] flex-shrink-0 sm:text-[16px]" />

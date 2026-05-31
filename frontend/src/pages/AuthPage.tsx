@@ -63,26 +63,26 @@ export function AuthPage({
   });
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.22),_transparent_30%),linear-gradient(180deg,_#f7fbff_0%,_#eaf1ff_100%)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-        <section className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 backdrop-blur">
-            MailPilot Access
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.22),_transparent_30%),linear-gradient(180deg,_#f7fbff_0%,_#eaf1ff_100%)] px-4 py-4 text-slate-900 sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100svh-2rem)] max-w-6xl items-start gap-4 sm:gap-6 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-8">
+        <section className="order-1 space-y-3 sm:space-y-5 lg:space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/75 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700 backdrop-blur sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.22em]">
+            Secure access
           </div>
-          <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            One inbox workspace for password login, Google SSO, OTP verification and Gmail automation.
+          <h1 className="max-w-2xl text-2xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
+            SK-MailPilot
           </h1>
-          <p className="max-w-2xl text-lg text-slate-600">
-            Existing password users can also continue with Google SSO on the same email. Verified sessions unlock the full dashboard, inbox sync and compose tools.
+          <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-lg">
+            Sign in to manage Gmail automation, inbox sync, and secure team access from one workspace.
           </p>
-          <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
+          <div className="hidden gap-3 text-sm text-slate-700 sm:grid sm:grid-cols-3">
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">Password and Google login on one account</div>
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">OTP verification before sensitive access</div>
             <div className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm">Responsive inbox and compose workspace</div>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] backdrop-blur sm:p-6">
+        <section className="order-2 rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] backdrop-blur sm:rounded-[28px] sm:p-6">
           {pendingVerificationEmail ? (
             <div className="space-y-5">
               <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
@@ -255,15 +255,6 @@ export function AuthPage({
                 ))}
               </div>
 
-              <button
-                type="button"
-                onClick={() => void onGoogleLogin()}
-                className="mb-4 inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
-              >
-                <GoogleLogo />
-                Continue with Google SSO
-              </button>
-
               {error ? (
                 <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   {error}
@@ -342,6 +333,15 @@ export function AuthPage({
                 >
                   <FiLogIn />
                   {mode === "login" ? "Login" : mode === "register" ? "Create account" : "Send reset OTP"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void onGoogleLogin()}
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+                >
+                  <GoogleLogo />
+                  Continue with Google SSO
                 </button>
               </form>
             </>
