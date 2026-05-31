@@ -5,6 +5,7 @@ import { EmailModel } from "../models/email.model";
 import type { EmailAttachmentRecord } from "./attachment-analysis.service";
 import { createOrUpdateEmailRecord, trimEmailContent } from "./email-record.service";
 import { fetchEmailsFromGmail } from "./gmail.service";
+import { getRequiredNumberEnv } from "../config/env";
 
 type SyncOptions = {
   userId?: string;
@@ -17,7 +18,7 @@ type SyncOptions = {
   onProcessed?: (payload: { failed: boolean }) => void;
 };
 
-const emailSyncConcurrency = Math.max(1, Number(process.env.EMAIL_SYNC_CONCURRENCY ?? 8));
+const emailSyncConcurrency = Math.max(1, getRequiredNumberEnv("EMAIL_SYNC_CONCURRENCY"));
 
 async function upsertProcessedEmail(email: {
   userId: string;

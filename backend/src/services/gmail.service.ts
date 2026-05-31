@@ -8,6 +8,7 @@ import {
 } from "./attachment-analysis.service";
 import { GmailAccountModel } from "../models/gmail-account.model";
 import { logger } from "../utils/logger";
+import { getRequiredEnv, getRequiredNumberEnv } from "../config/env";
 
 const gmailFetchOptionsSchema = z.object({
   maxResults: z.number().int().min(1).optional(),
@@ -48,20 +49,18 @@ type GmailAccountContext = {
   scope?: string | null;
 };
 
-const gmailApiTimeoutMs = Number(process.env.GMAIL_API_TIMEOUT_MS ?? 20000);
-const configuredGmailFetchMaxResults = Number(process.env.GMAIL_FETCH_MAX_RESULTS ?? 100);
+const gmailApiTimeoutMs = getRequiredNumberEnv("GMAIL_API_TIMEOUT_MS");
+const configuredGmailFetchMaxResults = getRequiredNumberEnv("GMAIL_FETCH_MAX_RESULTS");
 const gmailFetchMaxResults =
   Number.isFinite(configuredGmailFetchMaxResults) && configuredGmailFetchMaxResults > 0
     ? Math.min(100, Math.floor(configuredGmailFetchMaxResults))
     : 100;
 const gmailMessageFetchConcurrency = Math.max(
   1,
-  Number(process.env.GMAIL_MESSAGE_FETCH_CONCURRENCY ?? 20)
+  getRequiredNumberEnv("GMAIL_MESSAGE_FETCH_CONCURRENCY")
 );
-const attachmentPreviewMaxBytes = Number(process.env.ATTACHMENT_PREVIEW_MAX_BYTES ?? 300000);
-const requiredSendScopes =
-  process.env.GOOGLE_REQUIRED_SEND_SCOPES ??
-  "https://www.googleapis.com/auth/gmail.send or https://www.googleapis.com/auth/gmail.modify";
+const attachmentPreviewMaxBytes = getRequiredNumberEnv("ATTACHMENT_PREVIEW_MAX_BYTES");
+const requiredSendScopes = getRequiredEnv("GOOGLE_REQUIRED_SEND_SCOPES");
 const requiredReadScopes = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.modify",
@@ -138,23 +137,13 @@ function toReadableGmailError(error: unknown, action: string) {
   return error instanceof Error ? error : new Error(message);
 }
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is required for Gmail API access`);
-  }
-
-  return value;
-}
-
 async function resolveAccountContext(accountId?: string | null): Promise<GmailAccountContext> {
   if (!accountId) {
     return {
       id: null,
       accessToken: null,
-      refreshToken: process.env.GOOGLE_REFRESH_TOKEN ?? null,
-      scope: process.env.GOOGLE_REQUIRED_SEND_SCOPES ?? null,
+      refreshToken: getRequiredEnv("GOOGLE_REFRESH_TOKEN"),
+      scope: getRequiredEnv("GOOGLE_REQUIRED_SEND_SCOPES"),
     };
   }
 
@@ -179,7 +168,7 @@ async function resolveAccountContext(accountId?: string | null): Promise<GmailAc
 function createOAuthClient(refreshToken: string, accessToken?: string | null) {
   const clientId = getRequiredEnv("GOOGLE_CLIENT_ID");
   const clientSecret = getRequiredEnv("GOOGLE_CLIENT_SECRET");
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? "https://developers.google.com/oauthplayground";
+  const redirectUri = getRequiredEnv("GOOGLE_REDIRECT_URI");
 
   const client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 

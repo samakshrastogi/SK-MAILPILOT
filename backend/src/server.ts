@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { getOptionalEnv, getRequiredNumberEnv } from "./config/env";
 
 dotenv.config();
 
@@ -36,7 +37,7 @@ function normalizeProxyEnvironment() {
 
 normalizeProxyEnvironment();
 
-const port = Number(process.env.PORT ?? 5000);
+const port = getRequiredNumberEnv("PORT");
 
 process.on("unhandledRejection", (error) => {
   console.error("Unhandled rejection", error);
@@ -54,7 +55,7 @@ async function bootstrap() {
     import("./services/compose-scheduler.service"),
   ]);
 
-  if (process.env.MONGO_URI) {
+  if (getOptionalEnv("MONGO_URI")) {
     await connectDB();
   }
 

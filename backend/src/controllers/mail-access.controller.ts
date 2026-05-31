@@ -10,11 +10,10 @@ import { sendEmailThroughGmail } from "../services/gmail.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { createNotification } from "../services/notification.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
+import { getMailAccessAdminEmail } from "../config/env";
 import { signState } from "../utils/auth";
 
-const adminEmail = (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com")
-  .trim()
-  .toLowerCase();
+const adminEmail = getMailAccessAdminEmail();
 
 const requestStartSchema = z.object({
   requestedAccountEmail: z.string().trim().email(),

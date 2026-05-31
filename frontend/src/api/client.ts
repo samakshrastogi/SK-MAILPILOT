@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+import { getRequiredViteEnv } from "../config/env";
+
+const API_BASE_URL = getRequiredViteEnv("VITE_API_BASE_URL");
 
 export const AUTH_STORAGE_KEY = "sk-mailpilot-auth-token";
 export const AUTH_USER_STORAGE_KEY = "sk-mailpilot-auth-user";

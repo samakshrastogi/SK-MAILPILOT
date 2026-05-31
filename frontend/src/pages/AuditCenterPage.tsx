@@ -73,7 +73,7 @@ export function AuditCenterPage({ canView }: AuditCenterPageProps) {
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
-      <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {[
           { label: "Sync runs", value: summary?.syncRuns ?? 0, icon: FiActivity },
           { label: "Pending approvals", value: summary?.pendingApprovals ?? 0, icon: FiClock },
@@ -81,11 +81,11 @@ export function AuditCenterPage({ canView }: AuditCenterPageProps) {
           { label: "Failed sends", value: summary?.failedSends ?? 0, icon: FiAlertCircle },
           { label: "Live mailboxes", value: summary?.mailboxes ?? 0, icon: FiShield },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+          <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm sm:px-3 sm:py-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{item.label}</p>
-                <p className="mt-0.5 text-2xl font-semibold leading-none text-slate-900">{item.value}</p>
+                <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px] sm:tracking-[0.12em]">{item.label}</p>
+                <p className="mt-0.5 text-xl font-semibold leading-none text-slate-900 sm:text-2xl">{item.value}</p>
               </div>
               <item.icon className="shrink-0 text-sm text-slate-400" />
             </div>

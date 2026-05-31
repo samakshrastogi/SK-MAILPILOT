@@ -2,8 +2,9 @@ import { UserModel } from "../models/user.model";
 import { sendEmailThroughGmail } from "./gmail.service";
 import { createNumericOtp, hashPassword, hashToken } from "../utils/auth";
 import { buildBrandedEmail } from "./email-template.service";
+import { getRequiredNumberEnv } from "../config/env";
 
-const otpTtlMinutes = Number(process.env.EMAIL_VERIFICATION_OTP_TTL_MINUTES ?? 10);
+const otpTtlMinutes = getRequiredNumberEnv("EMAIL_VERIFICATION_OTP_TTL_MINUTES");
 
 function buildOtpEmail(name: string, otp: string) {
   const plainText = [

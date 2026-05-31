@@ -2,15 +2,13 @@ import mongoose from "mongoose";
 import { ensureEmailNumericIds } from "../services/email-record.service";
 import { EmailModel } from "../models/email.model";
 import { UserModel } from "../models/user.model";
+import { getRequiredEnv } from "./env";
 
 export const connectDB = async () => {
   try {
-    const mongoDbName = process.env.MONGO_DB_NAME;
-    if (!mongoDbName) {
-      throw new Error("MONGO_DB_NAME is required");
-    }
+    const mongoDbName = getRequiredEnv("MONGO_DB_NAME");
 
-    await mongoose.connect(process.env.MONGO_URI as string, {
+    await mongoose.connect(getRequiredEnv("MONGO_URI"), {
       dbName: mongoDbName,
     });
 

@@ -4,8 +4,9 @@ import { ScheduledEmailModel } from "../models/scheduled-email.model";
 import { sendEmailThroughGmail } from "./gmail.service";
 import { createNotification } from "./notification.service";
 import { logger } from "../utils/logger";
+import { getRequiredNumberEnv } from "../config/env";
 
-const composeSchedulerPollMs = Number(process.env.COMPOSE_SCHEDULER_POLL_MS ?? 30000);
+const composeSchedulerPollMs = getRequiredNumberEnv("COMPOSE_SCHEDULER_POLL_MS");
 let composeSchedulerHandle: NodeJS.Timeout | null = null;
 let composeSchedulerBusy = false;
 

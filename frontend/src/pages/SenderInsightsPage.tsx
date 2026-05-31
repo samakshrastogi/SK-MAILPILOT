@@ -110,27 +110,27 @@ export function SenderInsightsPage({ accountId, includeAllAccounts }: SenderInsi
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Top senders</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">{senderInsights.length}</p>
+      <section className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Top senders</p>
+          <p className="mt-1 text-xl font-semibold leading-none text-slate-900 sm:text-2xl">{senderInsights.length}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Best response rate</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">
+        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Best response rate</p>
+          <p className="mt-1 text-xl font-semibold leading-none text-slate-900 sm:text-2xl">
             {senderInsights[0] ? `${Math.max(...senderInsights.map((item) => item.responseRate))}%` : "0%"}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Rule suggestions</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">
+        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Rule suggestions</p>
+          <p className="mt-1 text-xl font-semibold leading-none text-slate-900 sm:text-2xl">
             {senderInsights.reduce((total, item) => total + item.autoRules.filter((rule) => rule !== "No automation recommended yet").length, 0)}
           </p>
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white/90 p-2.5 shadow-sm">
-        <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+      <section className="rounded-xl border border-slate-200 bg-white/90 p-2 shadow-sm sm:p-2.5">
+        <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5">
           <div className="mb-2 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-600">Rules</p>
@@ -140,17 +140,17 @@ export function SenderInsightsPage({ accountId, includeAllAccounts }: SenderInsi
               {rules.length} rules
             </span>
           </div>
-          <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_0.8fr_0.8fr_auto_auto] xl:items-center">
-            <input value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="Rule name" className="h-8 rounded-lg border border-slate-200 px-2.5 text-sm" />
-            <input value={ruleSender} onChange={(e) => setRuleSender(e.target.value)} placeholder="Sender contains" className="h-8 rounded-lg border border-slate-200 px-2.5 text-sm" />
-            <input value={ruleSubject} onChange={(e) => setRuleSubject(e.target.value)} placeholder="Subject contains" className="h-8 rounded-lg border border-slate-200 px-2.5 text-sm" />
-            <select value={rulePriority} onChange={(e) => setRulePriority(e.target.value as "low" | "medium" | "high" | "")} className="h-8 rounded-lg border border-slate-200 px-2.5 text-sm">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_0.8fr_0.8fr_auto_auto] xl:items-center">
+            <input value={ruleName} onChange={(e) => setRuleName(e.target.value)} placeholder="Rule name" className="col-span-2 h-9 rounded-lg border border-slate-200 px-2.5 text-sm sm:h-8 xl:col-span-1" />
+            <input value={ruleSender} onChange={(e) => setRuleSender(e.target.value)} placeholder="Sender contains" className="h-9 rounded-lg border border-slate-200 px-2.5 text-sm sm:h-8" />
+            <input value={ruleSubject} onChange={(e) => setRuleSubject(e.target.value)} placeholder="Subject contains" className="h-9 rounded-lg border border-slate-200 px-2.5 text-sm sm:h-8" />
+            <select value={rulePriority} onChange={(e) => setRulePriority(e.target.value as "low" | "medium" | "high" | "")} className="h-9 min-w-0 rounded-lg border border-slate-200 px-2 text-sm sm:h-8 sm:px-2.5">
               <option value="">Priority</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
-            <select value={ruleCategory} onChange={(e) => setRuleCategory(e.target.value as EmailCategory | "")} className="h-8 rounded-lg border border-slate-200 px-2.5 text-sm">
+            <select value={ruleCategory} onChange={(e) => setRuleCategory(e.target.value as EmailCategory | "")} className="h-9 min-w-0 rounded-lg border border-slate-200 px-2 text-sm sm:h-8 sm:px-2.5">
               <option value="">Category</option>
               <option value="work">Work</option>
               <option value="personal">Personal</option>
@@ -160,11 +160,11 @@ export function SenderInsightsPage({ accountId, includeAllAccounts }: SenderInsi
               <option value="updates">Updates</option>
               <option value="other">Other</option>
             </select>
-            <label className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap text-sm text-slate-600">
+            <label className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap text-sm text-slate-600 sm:h-8">
               <input type="checkbox" checked={ruleArchive} onChange={(e) => setRuleArchive(e.target.checked)} />
               Auto-archive
             </label>
-            <button type="button" onClick={() => void handleCreateRule()} className="h-8 whitespace-nowrap rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
+            <button type="button" onClick={() => void handleCreateRule()} className="h-9 whitespace-nowrap rounded-lg bg-slate-900 px-3 text-sm font-medium text-white sm:h-8">
               Save rule
             </button>
           </div>
@@ -182,7 +182,30 @@ export function SenderInsightsPage({ accountId, includeAllAccounts }: SenderInsi
           ) : null}
         </div>
         {senderInsights.length ? (
-          <div className="overflow-x-auto">
+          <>
+          <div className="space-y-1 sm:hidden">
+            <div className="grid grid-cols-[minmax(0,1fr)_56px_64px] gap-2 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <span>Sender</span>
+              <span className="text-right">Emails</span>
+              <span className="text-right">Rate</span>
+            </div>
+            {senderInsights.map((item) => (
+              <div
+                key={item.sender}
+                className="grid grid-cols-[minmax(0,1fr)_56px_64px] items-center gap-2 rounded-lg border border-slate-100 bg-white px-2 py-2 text-sm"
+              >
+                <span className="min-w-0 break-words font-medium leading-5 text-slate-900">
+                  {item.sender}
+                </span>
+                <span className="text-right text-slate-600">{item.count}</span>
+                <span className="justify-self-end rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                  {item.responseRate}%
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden sm:block">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] uppercase tracking-[0.14em] text-slate-500">
@@ -210,6 +233,7 @@ export function SenderInsightsPage({ accountId, includeAllAccounts }: SenderInsi
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <div className="flex flex-col items-center gap-3 py-12 text-center">
             <FiTrendingUp className="text-3xl text-slate-300" />

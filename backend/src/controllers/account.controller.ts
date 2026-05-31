@@ -10,6 +10,7 @@ import { sendEmailThroughGmail } from "../services/gmail.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { createNotification } from "../services/notification.service";
 import { recordAuditEvent } from "../services/audit.service";
+import { getMailAccessAdminEmail, getWebBaseUrl } from "../config/env";
 import { signState, verifyState } from "../utils/auth";
 
 const requiredGmailScopes = [
@@ -40,7 +41,7 @@ function normalizeReturnTo(value?: string) {
 function authCompleteHtml(payload: Record<string, unknown>, returnTo?: string) {
   const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
   const encodedPayload = encodeURIComponent(JSON.stringify(payload));
-  const frontendBaseUrl = (process.env.WEB_BASE_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const frontendBaseUrl = getWebBaseUrl();
   const normalizedReturnTo = normalizeReturnTo(returnTo);
   return `<!DOCTYPE html>
 <html>
@@ -133,8 +134,7 @@ export async function startGoogleAccountConnect(req: AuthenticatedRequest, res: 
     }
 
     const requestedAccountEmail = query.requestedAccountEmail?.toLowerCase();
-    const isAdmin = user.email.trim().toLowerCase() ===
-      (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase();
+    const isAdmin = user.email.trim().toLowerCase() === getMailAccessAdminEmail();
 
     if (requestedAccountEmail && !isAdmin) {
       const approvedRequest = await MailAccessRequestModel.findOne({
@@ -208,8 +208,7 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
     const callbackScope = z.string().trim().optional().parse(req.query.scope);
     const user = await UserModel.findById(state.userId).select({ name: 1, email: 1, primaryAccountId: 1 }).lean();
     const isAdmin =
-      user?.email?.trim().toLowerCase() ===
-      (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase();
+      user?.email?.trim().toLowerCase() === getMailAccessAdminEmail();
     const requestedAccountEmail = state.requestedAccountEmail?.trim().toLowerCase();
 
     if (requestedAccountEmail && result.profile.email !== requestedAccountEmail) {
@@ -339,7 +338,7 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
           );
 
           await sendEmailThroughGmail({
-            to: (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase(),
+            to: getMailAccessAdminEmail(),
             subject: `Mail access request pending approval: ${requestedAccountEmail}`,
             body: pendingApprovalEmail.plainText,
             htmlBody: pendingApprovalEmail.html,
@@ -377,7 +376,7 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
         });
 
         const adminUser = await UserModel.findOne({
-          email: (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase(),
+          email: getMailAccessAdminEmail(),
         })
           .select({ _id: 1 })
           .lean();

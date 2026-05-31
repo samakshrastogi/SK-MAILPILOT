@@ -38,6 +38,7 @@ import {
   startSyncProgress,
   updateSyncFetched,
 } from "../services/sync-progress.service";
+import { getRequiredNumberEnv } from "../config/env";
 import { logger } from "../utils/logger";
 
 const requiredGmailReadScopes = [
@@ -166,7 +167,7 @@ function parseLabelIds(labelIds?: string) {
 }
 
 function getDefaultFetchMode() {
-  const configuredLimit = Number(process.env.FETCH_EMAILS_LIMIT ?? 25);
+  const configuredLimit = getRequiredNumberEnv("FETCH_EMAILS_LIMIT");
 
   if (Number.isFinite(configuredLimit) && configuredLimit > 0) {
     return Math.min(inboxFetchLimit, Math.floor(configuredLimit));

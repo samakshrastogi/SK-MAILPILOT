@@ -7,6 +7,7 @@ import {
   FiMail,
   FiRefreshCcw,
   FiSend,
+  FiClipboard,
   FiShield,
   FiUsers,
 } from "react-icons/fi";
@@ -34,7 +35,7 @@ const navItemsConfig: Array<{
   { route: "emails", label: "Emails", icon: FiMail },
   { route: "compose", label: "Compose", icon: FiSend },
   { route: "mail-access", label: "Request", icon: FiShield, accessRequired: "requests" },
-  { route: "audit-center", label: "Audit", icon: FiShield, accessRequired: "audit" },
+  { route: "audit-center", label: "Audit", icon: FiClipboard, accessRequired: "audit" },
   { route: "team", label: "Team", icon: FiUsers, accessRequired: "team" },
 ];
 
@@ -121,10 +122,10 @@ export function AppShell({
   }, []);
 
   const actionBtn =
-    "h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105";
+    "flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm shadow-sm transition-all duration-200 hover:scale-105 hover:bg-slate-50 hover:shadow-md active:bg-slate-100 sm:h-10 sm:w-10 sm:rounded-xl sm:text-base";
 
   const primaryBtn =
-    "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-3.5 text-sm font-semibold text-white hover:bg-slate-800 active:bg-slate-950 transition-all duration-200 shadow-md hover:shadow-lg";
+    "inline-flex h-8 w-8 items-center justify-center gap-2 rounded-lg bg-slate-900 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-slate-800 hover:shadow-lg active:bg-slate-950 sm:h-10 sm:w-auto sm:rounded-xl sm:px-3.5";
   const accountScopeValue = includeAllAccounts ? "all" : selectedAccountId ?? "all";
   const selectedAccount = accounts.find((account) => account.id === selectedAccountId);
   const accountScopeLabel = accountScopeValue === "all" ? "All emails" : selectedAccount?.email ?? "All emails";
@@ -139,32 +140,33 @@ export function AppShell({
       {/* HEADER */}
       <div className="sticky top-0 z-50 shadow-sm">
         <header className="relative z-[80] border-b border-slate-200 bg-white/85 backdrop-blur-lg">
-          <div className="mx-auto max-w-7xl px-4 py-4">
+          <div className="mx-auto max-w-7xl px-3 py-2 sm:px-4 sm:py-4">
 
             {/* TOP BAR */}
             <div className="flex items-center justify-between gap-2">
 
               {/* LEFT: LOGO + NAME */}
-              <div className="flex items-center gap-3 min-w-0 group">
+              <div className="flex min-w-0 items-center gap-2 group sm:gap-3">
                 {/* Logo */}
-                <div className="relative h-10 w-10 flex items-center justify-center rounded-xl 
+                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg 
     bg-gradient-to-br from-sky-500 via-blue-600 to-cyan-500 
-    text-white font-semibold shadow-md 
+    text-xs font-semibold text-white shadow-md 
     group-hover:shadow-lg group-hover:scale-105 
-    transition-all duration-200"
+    transition-all duration-200 sm:h-10 sm:w-10 sm:rounded-xl sm:text-base"
                 >
                   SK
 
                   {/* subtle glow */}
-                  <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 transition-opacity group-hover:opacity-100 sm:rounded-xl" />
                 </div>
 
                 {/* Title */}
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-sky-600">
+                  <p className="truncate text-[9px] font-semibold uppercase tracking-[0.22em] text-sky-600 sm:text-[10px] sm:tracking-[0.32em]">
                     SK MailPilot
                   </p>
-                  <h1 className="truncate text-lg font-semibold text-slate-900 tracking-tight 
+                  <h1 className="hidden truncate text-base font-semibold tracking-tight text-slate-900 
+    min-[380px]:block sm:text-lg
     group-hover:text-blue-600 transition-colors duration-200"
                   >
                     Mail Operations
@@ -172,7 +174,7 @@ export function AppShell({
                 </div>
               </div>
               {/* RIGHT: ACTIONS */}
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
 
                 <button onClick={onRefresh} className={primaryBtn} title="Sync inbox">
                   <FiRefreshCcw className={refreshing ? "animate-spin" : ""} />
@@ -201,18 +203,18 @@ export function AppShell({
                   </button>
 
                   {notificationMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[100] w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 backdrop-blur-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="fixed left-3 right-3 top-[4.75rem] z-[100] max-h-[calc(100vh-5.5rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.75rem)] sm:w-[min(380px,calc(100vw-2rem))] sm:max-h-none">
 
                       {/* Header */}
-                      <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <p className="font-semibold text-sm text-slate-900 tracking-tight">
+                      <div className="flex min-w-0 items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-3 py-3 sm:px-5 sm:py-4">
+                        <p className="min-w-0 truncate text-sm font-semibold tracking-tight text-slate-900">
                           Notifications
                         </p>
 
                         {notifications.length > 0 && (
                           <button
                             onClick={onReadAllNotifications}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
+                            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-700 sm:px-3"
                           >
                             Mark all
                           </button>
@@ -220,7 +222,7 @@ export function AppShell({
                       </div>
 
                       {/* List */}
-                      <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
+                      <div className="max-h-[calc(100vh-9.5rem)] divide-y divide-slate-100 overflow-y-auto sm:max-h-96">
                         {notifications.length ? (
                           notifications.map((n) => (
                             <button
@@ -229,7 +231,7 @@ export function AppShell({
                                 setNotificationMenuOpen(false);
                                 onReadNotification(n);
                               }}
-                              className={`group relative w-full text-left px-5 py-4 transition-all duration-150
+                              className={`group relative w-full min-w-0 px-3 py-3 text-left transition-all duration-150 sm:px-5 sm:py-4
               ${n.readAt
                                   ? "bg-white text-slate-500"
                                   : "bg-blue-50/40 text-slate-900"
@@ -239,14 +241,14 @@ export function AppShell({
                             >
                               {/* Unread indicator */}
                               {!n.readAt && (
-                                <span className="absolute left-3 top-5 h-2 w-2 rounded-full bg-blue-500"></span>
+                                <span className="absolute left-2 top-4 h-2 w-2 rounded-full bg-blue-500 sm:left-3 sm:top-5"></span>
                               )}
 
-                              <div className="pl-3">
-                                <p className="text-sm font-semibold leading-tight">
+                              <div className="min-w-0 pl-3">
+                                <p className="truncate text-sm font-semibold leading-tight">
                                   {n.title}
                                 </p>
-                                <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                <p className="mt-1 line-clamp-2 text-xs text-slate-600">
                                   {n.message}
                                 </p>
                               </div>
@@ -275,7 +277,7 @@ export function AppShell({
                       setProfileMenuOpen((v) => !v);
                       setNotificationMenuOpen(false);
                     }}
-                    className="h-10 w-10 rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110"
+                    className="h-9 w-9 overflow-hidden rounded-lg border border-slate-200 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-10 sm:w-10 sm:rounded-xl"
                   >
                     {user.avatarUrl && !avatarBroken ? (
                       <img
@@ -292,16 +294,38 @@ export function AppShell({
                   </button>
 
                   {profileMenuOpen && (
-                    <div className="absolute right-0 top-12 w-72 max-w-[90vw] rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <p className="font-semibold text-sm text-slate-900">{user.name}</p>
-                        <p className="text-xs text-slate-500 mt-1">{user.email}</p>
+                    <div className="absolute right-0 top-[calc(100%+0.125rem)] z-[100] w-[calc(100vw-1.5rem)] max-w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 sm:w-80">
+                      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white p-3 sm:p-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                            {user.avatarUrl && !avatarBroken ? (
+                              <img
+                                src={user.avatarUrl}
+                                onError={() => setAvatarBroken(true)}
+                                className="h-full w-full object-cover"
+                                alt={user.name}
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-sm font-semibold text-white">
+                                {getUserInitials(user.name)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                              Account
+                            </p>
+                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">{user.name}</p>
+                            <p className="mt-0.5 truncate text-xs text-slate-500">{user.email}</p>
+                          </div>
+                        </div>
                       </div>
                       <button
                         onClick={onLogout}
-                        className="w-full flex items-center gap-2 px-5 py-3 text-rose-600 hover:bg-rose-50/80 font-medium transition-colors duration-150 border-t border-slate-100"
+                        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm font-semibold text-rose-600 transition-colors duration-150 hover:bg-rose-50/80 sm:px-4"
                       >
-                        <FiLogOut className="text-lg" /> Logout
+                        <span className="min-w-0 truncate">Logout</span>
+                        <FiLogOut className="shrink-0 text-lg" />
                       </button>
                     </div>
                   )}
@@ -313,8 +337,11 @@ export function AppShell({
 
         {/* WORKSPACE BAR */}
         <section className="relative z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur-lg">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-            <nav className="flex min-w-0 max-w-full gap-1.5 overflow-x-auto rounded-2xl bg-white/90 p-1.5 shadow-inner ring-1 ring-slate-200/80" aria-label="Primary">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-2 sm:px-4 sm:py-3 lg:flex-row lg:items-center lg:justify-between">
+            <nav
+              className="grid w-full grid-cols-6 gap-1 rounded-xl bg-white/90 p-1 shadow-inner ring-1 ring-slate-200/80 sm:gap-1.5 sm:rounded-2xl sm:p-1.5 lg:w-auto lg:min-w-0"
+              aria-label="Primary"
+            >
 
               {navItems.map(({ route: r, label, icon: Icon, locked }) => {
                 const active = route === r;
@@ -324,7 +351,7 @@ export function AppShell({
                     key={r}
                     onClick={() => navigate(r)}
                     title={locked ? "Access is restricted for this section" : undefined}
-                    className={`flex min-w-fit items-center gap-2 px-3 py-2.5 sm:px-4 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all duration-200 font-medium min-h-10
+                    className={`flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-xs font-medium transition-all duration-200 sm:min-h-10 sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2.5 lg:px-4
             ${active
                         ? "bg-slate-900 shadow-md text-white"
                         : locked
@@ -332,8 +359,8 @@ export function AppShell({
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
                       }`}
                   >
-                    <Icon className="text-[16px] flex-shrink-0" />
-                    <span>{label}</span>
+                    <Icon className="text-[15px] flex-shrink-0 sm:text-[16px]" />
+                    <span className="hidden truncate min-[520px]:inline sm:inline">{label}</span>
                     {r === "mail-access" && pendingMailAccessCount > 0 ? (
                       <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                         {pendingMailAccessCount}
@@ -357,13 +384,13 @@ export function AppShell({
                   setProfileMenuOpen(false);
                 }}
                 disabled={!accounts.length}
-                className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 text-left shadow-sm transition hover:border-sky-200 hover:bg-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2.5 py-1.5 text-left shadow-sm transition hover:border-sky-200 hover:bg-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70 sm:min-h-14 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2"
                 title="Select mailbox scope"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sm text-sky-700 sm:h-10 sm:w-10 sm:rounded-xl sm:text-base">
                 <FiMail />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 sm:text-base">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
                   {accounts.length ? accountScopeLabel : "No synced mailboxes"}
                 </span>
                 <FiChevronDown
@@ -407,8 +434,8 @@ export function AppShell({
       </div>
 
       {/* MAIN */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="space-y-6">{children}</div>
+      <main className={`mx-auto max-w-7xl ${route === "chatbot" ? "px-2 py-2 sm:px-4 sm:py-6" : "px-4 py-6"}`}>
+        <div className={route === "chatbot" ? "space-y-0" : "space-y-6"}>{children}</div>
       </main>
     </div>
   );

@@ -10,8 +10,9 @@ import {
 } from "./email-classification.service";
 import { logger } from "../utils/logger";
 import type { GmailSendAttachment } from "./gmail.service";
+import { getRequiredNumberEnv } from "../config/env";
 
-const replySchedulerPollMs = Number(process.env.REPLY_SCHEDULER_POLL_MS ?? 30000);
+const replySchedulerPollMs = getRequiredNumberEnv("REPLY_SCHEDULER_POLL_MS");
 let schedulerHandle: NodeJS.Timeout | null = null;
 let schedulerBusy = false;
 

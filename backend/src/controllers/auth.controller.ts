@@ -25,6 +25,7 @@ import {
   verifyPassword,
   verifyState,
 } from "../utils/auth";
+import { getMailAccessAdminEmail, getWebBaseUrl } from "../config/env";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2),
@@ -67,7 +68,7 @@ function normalizeReturnTo(value?: string) {
 function authCompleteHtml(payload: Record<string, unknown>, returnTo?: string) {
   const serialized = JSON.stringify(payload).replace(/</g, "\\u003c");
   const encodedPayload = encodeURIComponent(JSON.stringify(payload));
-  const frontendBaseUrl = (process.env.WEB_BASE_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const frontendBaseUrl = getWebBaseUrl();
   const normalizedReturnTo = normalizeReturnTo(returnTo);
   return `<!DOCTYPE html>
 <html>
@@ -119,7 +120,7 @@ function toAuthUser(user: {
 }
 
 function resolveUserRole(email: string) {
-  const adminEmail = (process.env.MAIL_ACCESS_ADMIN_EMAIL ?? "samakshrastogi2512@gmail.com").trim().toLowerCase();
+  const adminEmail = getMailAccessAdminEmail();
   return email.trim().toLowerCase() === adminEmail ? "admin" : "member";
 }
 

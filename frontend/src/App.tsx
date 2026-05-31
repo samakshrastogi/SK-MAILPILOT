@@ -43,9 +43,10 @@ import { TeamPage } from "./pages/TeamPage";
 import { TutorialPage } from "./pages/TutorialPage";
 import type { AuthUser, GmailAccount, MailAccessRequest } from "./types/auth";
 import type { AppNotification, ChatResponse, SyncProgress } from "./types/email";
+import { getRequiredViteEnv } from "./config/env";
 import "./mailpilot.css";
 
-const MAIL_ACCESS_ADMIN_EMAIL = "samakshrastogi2512@gmail.com";
+const MAIL_ACCESS_ADMIN_EMAIL = getRequiredViteEnv("VITE_MAIL_ACCESS_ADMIN_EMAIL");
 const MAIL_ACCESS_SYNC_ERROR = "Connect a Gmail account before syncing inbox emails";
 const COMPOSE_PREFILL_STORAGE_KEY = "sk-mailpilot-compose-prefill";
 

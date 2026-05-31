@@ -1,17 +1,8 @@
 import { google } from "googleapis";
-
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-
-  return value;
-}
+import { getApiBaseUrl, getRequiredEnv } from "../config/env";
 
 function getBaseUrl() {
-  return process.env.API_BASE_URL ?? `http://localhost:${process.env.PORT ?? 5000}`;
+  return getApiBaseUrl();
 }
 
 export function getGoogleOAuthClient(redirectPath: string) {

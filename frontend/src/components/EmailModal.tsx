@@ -48,6 +48,32 @@ async function fileToAttachment(file: File): Promise<ComposeAttachmentInput> {
   };
 }
 
+function makeResponsiveEmailHtml(html: string) {
+  const responsiveStyles = `
+    <style>
+      html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+      body {
+        box-sizing: border-box;
+        padding: 12px;
+        color: #0f172a;
+        font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      *, *::before, *::after { box-sizing: border-box; max-width: 100% !important; }
+      img, video, canvas, svg { height: auto !important; }
+      table { width: 100% !important; table-layout: auto; }
+      pre { white-space: pre-wrap; }
+    </style>
+  `;
+
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `${responsiveStyles}</head>`);
+  }
+
+  return `<!doctype html><html><head>${responsiveStyles}</head><body>${html}</body></html>`;
+}
+
 export function EmailModal({
   email,
   onClose,
@@ -78,67 +104,68 @@ export function EmailModal({
 
   if (!email) return null;
 
-  const htmlDocument =
-    email.htmlContent ?? "<html><body>No email body available.</body></html>";
+  const htmlDocument = makeResponsiveEmailHtml(
+    email.htmlContent ?? "<html><body>No email body available.</body></html>"
+  );
 
   return (
     <div
-      className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-2 backdrop-blur-sm sm:p-4"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-7xl h-[85vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        className="flex h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl sm:h-[88vh]"
       >
         {/* 🔹 Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <div>
+        <div className="flex items-start justify-between gap-3 border-b px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="min-w-0">
             <p className="text-xs text-gray-500">Email #{email.numericId}</p>
-            <h2 className="text-base font-semibold">{email.subject}</h2>
-            <p className="text-xs text-gray-500">{email.sender}</p>
+            <h2 className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900 sm:text-base">{email.subject}</h2>
+            <p className="truncate text-xs text-gray-500">{email.sender}</p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100"
+            className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100"
           >
             <FiX size={18} />
           </button>
         </div>
 
         {/* 🔹 Split Layout */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
           
           {/* LEFT */}
-          <div className="w-1/2 border-r overflow-auto p-4 space-y-3">
+          <div className="space-y-2 border-b p-3 md:w-1/2 md:overflow-auto md:border-b-0 md:border-r md:p-4">
             <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
               Original Email
             </h3>
 
-            <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-hidden rounded-lg border">
               <iframe
                 sandbox=""
                 srcDoc={htmlDocument}
-                className="w-full h-[60vh]"
+                className="h-[34vh] w-full md:h-[60vh]"
                 title={`email-${email.numericId}`}
               />
             </div>
           </div>
 
           {/* RIGHT */}
-          <div className="w-1/2 overflow-auto p-4 space-y-4">
+          <div className="space-y-3 p-3 md:w-1/2 md:overflow-auto md:p-4">
             
             {/* 🔹 Reply Section */}
             <section className="space-y-2">
               <h3 className="text-sm font-semibold text-gray-800">Reply</h3>
 
-              <div className="flex gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]">
                 <select
                   value={replyTone}
                   onChange={(e) =>
                     setReplyTone(e.target.value as ReplyTone)
                   }
-                  className="border rounded-lg px-2.5 py-1.5 text-xs"
+                  className="h-9 min-w-0 rounded-lg border px-2.5 text-xs"
                 >
                   <option value="professional">Professional</option>
                   <option value="friendly">Friendly</option>
@@ -158,13 +185,13 @@ export function EmailModal({
                       setReplyTone(updated.replyTone);
                     }
                   }}
-                  className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs"
+                  className="h-9 rounded-lg bg-gray-900 px-3 text-xs font-medium text-white"
                 >
                   {generating ? "Generating..." : "AI Generate"}
                 </button>
                 <select
                   title="Apply reply template"
-                  className="border rounded-lg px-2.5 py-1.5 text-xs"
+                  className="h-9 min-w-0 rounded-lg border px-2.5 text-xs"
                   onChange={(e) => {
                     const template = templates.find((item) => item._id === e.target.value);
                     if (!template) {
@@ -198,7 +225,7 @@ export function EmailModal({
                       setTemplates(response.data);
                     })
                   }
-                  className="px-3 py-1.5 border rounded-lg text-xs whitespace-nowrap"
+                  className="h-9 rounded-lg border px-3 text-xs font-medium whitespace-nowrap"
                 >
                   Save template
                 </button>
@@ -207,17 +234,17 @@ export function EmailModal({
               <textarea
                 value={replyDraft}
                 onChange={(e) => setReplyDraft(e.target.value)}
-                className="w-full min-h-[100px] border rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                className="min-h-[120px] w-full rounded-lg border p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 md:min-h-[100px] md:text-xs"
               />
 
               {/* Actions & Schedule */}
-              <div className="flex gap-1.5 items-center">
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] sm:items-center">
                 <button
                   disabled={replying}
                   onClick={() =>
                     void onSendReplyNow(email.numericId, replyDraft, replyTone, replyAttachments)
                   }
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs whitespace-nowrap"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white whitespace-nowrap"
                 >
                   <FiSend size={14} />
                   {replying ? "Sending..." : "Send"}
@@ -233,7 +260,7 @@ export function EmailModal({
                       sendAt: new Date(Date.now() + 3600000).toISOString(),
                     })
                   }
-                  className="px-3 py-1.5 border rounded-lg text-xs whitespace-nowrap"
+                  className="h-9 rounded-lg border px-3 text-xs whitespace-nowrap"
                 >
                   1 hour
                 </button>
@@ -248,7 +275,7 @@ export function EmailModal({
                       sendAt: tomorrowMorning().toISOString(),
                     })
                   }
-                  className="px-3 py-1.5 border rounded-lg text-xs whitespace-nowrap"
+                  className="h-9 rounded-lg border px-3 text-xs whitespace-nowrap"
                 >
                   Tomorrow
                 </button>
@@ -257,7 +284,7 @@ export function EmailModal({
                   type="datetime-local"
                   value={customDateTime}
                   onChange={(e) => setCustomDateTime(e.target.value)}
-                  className="border rounded-lg px-2.5 py-1.5 text-xs flex-1"
+                  className="col-span-2 h-9 min-w-0 rounded-lg border px-2.5 text-xs sm:col-span-1"
                   title="Select custom schedule time"
                 />
 
@@ -271,13 +298,13 @@ export function EmailModal({
                       sendAt: new Date(customDateTime).toISOString(),
                     })
                   }
-                  className="px-3 py-1.5 bg-gray-200 rounded-lg text-xs whitespace-nowrap"
+                  className="h-9 rounded-lg bg-gray-200 px-3 text-xs whitespace-nowrap"
                 >
                   Schedule
                 </button>
               </div>
 
-              <label className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs">
+              <label className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border px-3 text-xs font-medium sm:w-auto">
                 Add reply attachments
                 <input type="file" multiple className="hidden" onChange={(event) => void handleReplyFileChange(event)} />
               </label>

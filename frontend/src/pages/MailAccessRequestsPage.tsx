@@ -118,18 +118,18 @@ export function MailAccessRequestsPage({ canView }: MailAccessRequestsPageProps)
         </span>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Pending</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">{pendingRequests.length}</p>
+      <section className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm sm:p-3">
+          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Pending</p>
+          <p className="mt-0.5 text-xl font-semibold leading-none text-slate-900 sm:mt-1 sm:text-2xl">{pendingRequests.length}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Approved</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">{approvedRequests.length}</p>
+        <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm sm:p-3">
+          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Approved</p>
+          <p className="mt-0.5 text-xl font-semibold leading-none text-slate-900 sm:mt-1 sm:text-2xl">{approvedRequests.length}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Audit trail</p>
-          <p className="mt-1 text-2xl font-semibold leading-none text-slate-900">{approvedRequests.filter((request) => request.approvedByEmail).length}</p>
+        <div className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm sm:p-3">
+          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-[10px] sm:tracking-[0.14em]">Audit trail</p>
+          <p className="mt-0.5 text-xl font-semibold leading-none text-slate-900 sm:mt-1 sm:text-2xl">{approvedRequests.filter((request) => request.approvedByEmail).length}</p>
         </div>
       </section>
 
@@ -142,18 +142,95 @@ export function MailAccessRequestsPage({ canView }: MailAccessRequestsPageProps)
       <section className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur-xl transition-all duration-200 hover:shadow-md">
 
         {requests.length ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+          <>
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-100 lg:hidden">
+              {requests.map((request) => (
+                <div key={`${request.id}-mobile`} className="min-w-0 p-3">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                      {request.requesterName?.[0]}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {request.requesterName}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-slate-500">
+                            {request.loginEmail}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                            request.status === "approved"
+                              ? "bg-green-100 text-green-600"
+                              : request.status === "pending"
+                                ? "bg-amber-100 text-amber-600"
+                                : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {request.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 min-w-0 rounded-lg bg-slate-50 px-2 py-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Request
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-slate-700">
+                          {request.requestedAccountEmail}
+                        </p>
+                      </div>
+
+                      <div className="mt-2 grid min-w-0 gap-1 text-xs text-slate-500">
+                        <p className="truncate">
+                          Approved by: {request.approvedByEmail ?? "Pending"}
+                        </p>
+                        <p className="truncate">
+                          {new Date(request.approvedAt ?? request.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+
+                      {request.status === "pending" ? (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={approvingId === request.id}
+                            onClick={() => void handleApprove(request.id)}
+                            className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60"
+                          >
+                            <FiCheck className="shrink-0 text-sm" />
+                            <span className="truncate">{approvingId === request.id ? "Approving..." : "Approve"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={rejectingId === request.id}
+                            onClick={() => void handleReject(request.id)}
+                            className="min-w-0 rounded-lg bg-rose-100 px-2 py-1.5 text-xs font-semibold text-rose-700 transition-all duration-200 disabled:opacity-60"
+                          >
+                            <span className="truncate">{rejectingId === request.id ? "Rejecting..." : "Reject"}</span>
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="min-w-full table-fixed text-sm">
 
               {/* Header */}
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                  <th className="px-3 py-2 font-medium">Requester</th>
-                  <th className="px-3 py-2 font-medium">Requested Mail</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Approved By</th>
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium text-right">Action</th>
+                  <th className="w-[24%] px-3 py-2 font-medium">Requester</th>
+                  <th className="w-[21%] px-3 py-2 font-medium">Requested Mail</th>
+                  <th className="w-[11%] px-3 py-2 font-medium">Status</th>
+                  <th className="w-[18%] px-3 py-2 font-medium">Approved By</th>
+                  <th className="w-[16%] px-3 py-2 font-medium">Date</th>
+                  <th className="w-[10%] px-3 py-2 font-medium text-right">Action</th>
                 </tr>
               </thead>
 
@@ -165,7 +242,7 @@ export function MailAccessRequestsPage({ canView }: MailAccessRequestsPageProps)
                     className="hover:bg-slate-50 transition-colors"
                   >
                     {/* Requester */}
-                    <td className="px-3 py-2.5">
+                    <td className="min-w-0 px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
                         {/* Avatar */}
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
@@ -204,12 +281,12 @@ export function MailAccessRequestsPage({ canView }: MailAccessRequestsPageProps)
                       </span>
                     </td>
 
-                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
+                    <td className="truncate px-3 py-2.5 text-slate-500">
                       {request.approvedByEmail ?? "Pending"}
                     </td>
 
                     {/* Date */}
-                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
+                    <td className="truncate px-3 py-2.5 text-slate-500">
                       {new Date(request.approvedAt ?? request.createdAt).toLocaleString()}
                     </td>
 
@@ -251,6 +328,7 @@ export function MailAccessRequestsPage({ canView }: MailAccessRequestsPageProps)
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <FiInbox className="text-3xl text-slate-300" />

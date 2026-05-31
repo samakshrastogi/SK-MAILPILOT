@@ -365,13 +365,13 @@ export function EmailsPage({
 
         {/* FILTER PANEL */}
         {showFilters && (
-          <div className="border-t border-sky-100/80 px-6 py-5 space-y-5">
-            <div className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-sm text-sky-800">
+          <div className="space-y-3 border-t border-sky-100/80 px-3 py-3 sm:space-y-4 sm:px-6 sm:py-5">
+            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-xs leading-5 text-sky-800 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
               Filters affect only the current view. Bulk actions use the visible selection.
             </div>
 
             {/* FILTERS */}
-            <div className="flex flex-wrap gap-2">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap">
 
               {/* Compact Select */}
               {[
@@ -388,13 +388,13 @@ export function EmailsPage({
                   label: "Status"
                 },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600">{item.label}</label>
+                <div key={i} className="flex min-w-0 flex-col gap-1 sm:w-auto">
+                  <label className="truncate text-[11px] font-medium text-slate-600 sm:text-xs">{item.label}</label>
                   <select
                     value={item.value}
                     onChange={(e) => item.onChange(e.target.value)}
                     title={item.label}
-                    className="h-10 px-3 rounded-xl border-2 border-slate-200 bg-white text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition hover:border-slate-300 cursor-pointer"
+                    className="h-9 min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:px-3"
                   >
                     {item.options.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -411,8 +411,8 @@ export function EmailsPage({
                 { value: mailPilot.categoryFilter, options: categoryOptions, label: "Category" },
                 { value: mailPilot.priorityFilter, options: priorityOptions, label: "Priority" },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600">{item.label}</label>
+                <div key={i} className="flex min-w-0 flex-col gap-1 sm:w-auto">
+                  <label className="truncate text-[11px] font-medium text-slate-600 sm:text-xs">{item.label}</label>
                   <select
                     value={item.value}
                     onChange={(e) => {
@@ -422,7 +422,7 @@ export function EmailsPage({
                       else if (i === 2) mailPilot.setPriorityFilter(e.target.value as never);
                     }}
                     title={item.label}
-                    className="h-10 px-3 rounded-xl border-2 border-slate-200 bg-white text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition hover:border-slate-300 cursor-pointer"
+                    className="h-9 min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:px-3"
                   >
                     {item.options.map((opt) => (
                       <option key={opt} value={opt}>
@@ -434,8 +434,8 @@ export function EmailsPage({
               ))}
 
               {/* Date */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Date Range</label>
+              <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
+                <label className="truncate text-[11px] font-medium text-slate-600 sm:text-xs">Date Range</label>
                 <select
                   value={dateWindow}
                   onChange={(e) => {
@@ -443,7 +443,7 @@ export function EmailsPage({
                     setDateWindow(e.target.value as "latest" | "last7" | "last30" | "custom");
                   }}
                   title="Date range"
-                  className="h-10 px-3 rounded-xl border-2 border-slate-200 text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition bg-white hover:border-slate-300 cursor-pointer"
+                  className="h-9 min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:px-3"
                 >
                   <option value="latest">Latest</option>
                   <option value="last7">Past 7 days</option>
@@ -453,30 +453,30 @@ export function EmailsPage({
               </div>
 
               {dateWindow === "custom" && (
-                <div className="flex flex-wrap gap-3 items-center">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-medium text-slate-600">From:</label>
-                    <div className="relative">
+                <div className="col-span-2 grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                    <label className="text-[11px] font-medium text-slate-600 sm:text-xs">From</label>
+                    <div className="relative min-w-0">
                       <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       <input
                         type="date"
                         value={mailPilot.dateFrom}
                         onChange={(e) => mailPilot.setDateFrom(e.target.value)}
                         title="Start date"
-                        className="h-10 pl-9 pr-3 rounded-xl border-2 border-slate-200 text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition bg-white hover:border-slate-300"
+                        className="h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-2 text-xs outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:pr-3 sm:text-sm"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-medium text-slate-600">To:</label>
-                    <div className="relative">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                    <label className="text-[11px] font-medium text-slate-600 sm:text-xs">To</label>
+                    <div className="relative min-w-0">
                       <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       <input
                         type="date"
                         value={mailPilot.dateTo}
                         onChange={(e) => mailPilot.setDateTo(e.target.value)}
                         title="End date"
-                        className="h-10 pl-9 pr-3 rounded-xl border-2 border-slate-200 text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition bg-white hover:border-slate-300"
+                        className="h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-2 text-xs outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:pr-3 sm:text-sm"
                       />
                     </div>
                   </div>
@@ -484,8 +484,8 @@ export function EmailsPage({
               )}
 
               {/* Sort */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Sort By</label>
+              <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
+                <label className="truncate text-[11px] font-medium text-slate-600 sm:text-xs">Sort By</label>
                 <select
                   value={mailPilot.sortBy}
                   onChange={(e) => {
@@ -493,7 +493,7 @@ export function EmailsPage({
                     mailPilot.setSortBy(e.target.value as "latest" | "oldest" | "priority" | "sender");
                   }}
                   title="Sort order"
-                  className="h-10 px-3 rounded-xl border-2 border-slate-200 text-sm focus:border-sky-400 focus:outline-none focus:shadow-lg focus:shadow-sky-100 transition bg-white hover:border-slate-300 cursor-pointer"
+                  className="h-9 min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:h-10 sm:w-auto sm:rounded-xl sm:border-2 sm:px-3"
                 >
                   <option value="latest">Latest</option>
                   <option value="oldest">Oldest</option>
@@ -504,22 +504,22 @@ export function EmailsPage({
             </div>
 
             {/* ACTION BAR */}
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-slate-100 pt-3 sm:pt-4">
 
               {/* AI */}
               <button
                 disabled={mailPilot.bulkGeneratingFollowUps}
                 onClick={() => void mailPilot.generateRepliesForFollowUps()}
-                className="h-10 px-4 rounded-xl bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition flex items-center gap-2"
+                className="flex h-9 min-w-0 items-center gap-1.5 rounded-lg bg-blue-50 px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-100 sm:h-10 sm:gap-2 sm:rounded-xl sm:px-4"
               >
-                <FiCpu />
-                {mailPilot.bulkGeneratingFollowUps ? "Generating..." : "Generate replies"}
+                <FiCpu className="shrink-0" />
+                <span className="truncate">{mailPilot.bulkGeneratingFollowUps ? "Generating..." : "Generate replies"}</span>
               </button>
 
               {/* BULK */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex min-w-0 flex-wrap gap-2">
                 {!mailPilot.selectionMode ? (
-                  <button onClick={() => mailPilot.setSelectionMode(true)} className="h-10 px-3 rounded-lg border text-sm hover:bg-slate-50">
+                  <button onClick={() => mailPilot.setSelectionMode(true)} className="h-9 rounded-lg border px-3 text-sm hover:bg-slate-50 sm:h-10">
                     Select messages
                   </button>
                 ) : (
@@ -535,7 +535,7 @@ export function EmailsPage({
                         key={i}
                         disabled={!mailPilot.selectedEmailIds.length}
                         onClick={btn.fn}
-                        className={`h-10 px-3 rounded-lg text-sm disabled:opacity-40
+                        className={`h-9 rounded-lg px-3 text-sm disabled:opacity-40 sm:h-10
                     ${btn.style === "amber"
                             ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
                             : btn.style === "rose"
@@ -553,7 +553,7 @@ export function EmailsPage({
                       onClick={() =>
                         mailPilot.setSelectedEmailIds(mailPilot.emails.map((e) => e.numericId))
                       }
-                      className="h-10 px-3 text-sm rounded-lg border hover:bg-slate-50"
+                      className="h-9 rounded-lg border px-3 text-sm hover:bg-slate-50 sm:h-10"
                     >
                       Select page
                     </button>
@@ -563,7 +563,7 @@ export function EmailsPage({
                         mailPilot.setSelectedEmailIds([]);
                         mailPilot.setSelectionMode(false);
                       }}
-                      className="h-10 px-3 text-sm rounded-lg border hover:bg-slate-50"
+                      className="h-9 rounded-lg border px-3 text-sm hover:bg-slate-50 sm:h-10"
                     >
                       Cancel
                     </button>
@@ -576,14 +576,14 @@ export function EmailsPage({
       </section>
 
       {viewMode === "grid" ? (
-        <section className="grid gap-5 md:grid-cols-2">
+        <section className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
           {mailPilot.emails.map((email) => {
             const selected = mailPilot.selectedEmailIds.includes(email.numericId);
 
             return (
               <div
                 key={email._id}
-                className={`relative rounded-2xl transition-all duration-200
+                className={`relative min-w-0 rounded-lg transition-all duration-200 sm:rounded-2xl
             ${selected ? "ring-2 ring-blue-500" : ""}
           `}
               >
@@ -599,7 +599,7 @@ export function EmailsPage({
           })}
         </section>
       ) : (
-        <section className="space-y-3">
+        <section className="space-y-2 sm:space-y-3">
           {mailPilot.emails.map((email) => {
             const selected = mailPilot.selectedEmailIds.includes(email.numericId);
 
@@ -608,8 +608,8 @@ export function EmailsPage({
                 key={email._id}
                 type="button"
                 onClick={() => setSelectedEmail(email)}
-                className={`group w-full rounded-2xl 
-          border px-5 py-4 text-left bg-white/90 backdrop-blur-sm
+                className={`group w-full rounded-xl 
+          border bg-white/90 px-3 py-3 text-left backdrop-blur-sm sm:rounded-2xl sm:px-5 sm:py-4
           transition-all duration-200
           hover:-translate-y-[1px] hover:shadow-md
           ${selected
@@ -622,13 +622,13 @@ export function EmailsPage({
                 <div className="min-w-0">
 
                   {/* TOP */}
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
 
                     {/* LEFT TEXT */}
-                    <div className="min-w-0 space-y-1">
+                    <div className="min-w-0 space-y-0.5 sm:space-y-1">
                       {mailPilot.selectionMode ? (
                         <span
-                          className="mb-2 flex h-5 w-5 items-center justify-center"
+                          className="mb-1.5 flex h-5 w-5 items-center justify-center sm:mb-2"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <input
@@ -639,64 +639,64 @@ export function EmailsPage({
                           />
                         </span>
                       ) : null}
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
 
-                        <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                        <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5 text-slate-900 transition-colors group-hover:text-blue-600">
                           {email.subject}
                         </p>
 
                         {email.followUpPending && (
-                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 sm:px-2.5 sm:py-1 sm:text-[11px]">
                             Pending reply
                           </span>
                         )}
                         {(email.threadMessageCount ?? 1) > 1 && (
-                          <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700">
+                          <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 sm:px-2.5 sm:py-1 sm:text-[11px]">
                             {email.threadMessageCount} in thread
                           </span>
                         )}
                         {email.replyRiskStatus === "overdue" && (
-                          <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
+                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700 sm:px-2.5 sm:py-1 sm:text-[11px]">
                             Overdue
                           </span>
                         )}
                         {email.replyRiskStatus === "at-risk" && (
-                          <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-700">
+                          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700 sm:px-2.5 sm:py-1 sm:text-[11px]">
                             At risk
                           </span>
                         )}
                       </div>
 
-                      <p className="truncate text-sm text-slate-500">
+                      <p className="truncate text-xs text-slate-500 sm:text-sm">
                         {email.sender}
                       </p>
                     </div>
 
                     {/* DATE */}
-                    <div className="shrink-0 text-xs font-medium text-slate-400 whitespace-nowrap">
+                    <div className="truncate text-[11px] font-medium text-slate-400 sm:shrink-0 sm:whitespace-nowrap sm:text-xs">
                       {new Date(getEmailDisplayDate(email)).toLocaleString()}
                     </div>
                   </div>
 
                   {/* BODY */}
-                  <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                  <p className="mt-1.5 line-clamp-1 text-xs leading-5 text-slate-600 sm:mt-2 sm:line-clamp-2 sm:text-sm">
                     {email.summary || email.content}
                   </p>
 
                   {/* TAGS */}
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] sm:mt-4 sm:gap-2 sm:text-xs">
                     {(email.threadMessageCount ?? 1) > 1 && (
-                      <span className="rounded-full bg-sky-50 px-2.5 py-1 font-medium text-sky-700">
+                      <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700 sm:px-2.5 sm:py-1">
                         {email.threadParticipants?.length ?? 0} participants
                       </span>
                     )}
 
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600 sm:px-2.5 sm:py-1">
                       {email.category}
                     </span>
 
                     <span
-                      className={`rounded-full px-2.5 py-1 font-medium
+                      className={`rounded-full px-2 py-0.5 font-medium sm:px-2.5 sm:py-1
                 ${email.priority === "high"
                           ? "bg-red-50 text-red-600"
                           : email.priority === "medium"

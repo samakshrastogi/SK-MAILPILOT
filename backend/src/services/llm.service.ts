@@ -1,11 +1,12 @@
 import { ChatOllama } from "@langchain/ollama";
 import { logger } from "../utils/logger";
+import { getRequiredBooleanEnv, getRequiredEnv, getRequiredNumberEnv } from "../config/env";
 
-const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
-const model = process.env.OLLAMA_MODEL ?? "llama3:latest";
-const llmTimeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 30000);
-const llmFailureCooldownMs = Number(process.env.LLM_FAILURE_COOLDOWN_MS ?? 300000);
-export const llmEnabled = process.env.EMAIL_ANALYSIS_LLM_ENABLED?.toLowerCase() === "true";
+const baseUrl = getRequiredEnv("OLLAMA_BASE_URL");
+const model = getRequiredEnv("OLLAMA_MODEL");
+const llmTimeoutMs = getRequiredNumberEnv("LLM_TIMEOUT_MS");
+const llmFailureCooldownMs = getRequiredNumberEnv("LLM_FAILURE_COOLDOWN_MS");
+export const llmEnabled = getRequiredBooleanEnv("EMAIL_ANALYSIS_LLM_ENABLED");
 
 let llmCooldownUntil = 0;
 let lastCooldownWarningAt = 0;

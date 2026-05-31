@@ -1,3 +1,5 @@
+import { getWebBaseUrl } from "../config/env";
+
 type EmailAction = {
   label: string;
   url: string;
@@ -31,7 +33,7 @@ export function escapeEmailHtml(value: string) {
 }
 
 export function buildAppUrl(path = "/") {
-  const baseUrl = (process.env.WEB_BASE_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const baseUrl = getWebBaseUrl();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${baseUrl}/#${normalizedPath}`;
 }

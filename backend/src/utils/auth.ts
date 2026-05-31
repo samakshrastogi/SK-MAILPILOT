@@ -1,9 +1,10 @@
 import crypto from "crypto";
+import { getRequiredEnv, getRequiredNumberEnv } from "../config/env";
 
-const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? 14);
+const sessionTtlDays = getRequiredNumberEnv("SESSION_TTL_DAYS");
 
 function getSecret() {
-  return process.env.AUTH_SECRET ?? "sk-mailpilot-dev-secret";
+  return getRequiredEnv("AUTH_SECRET");
 }
 
 export function createRandomToken(size = 32) {

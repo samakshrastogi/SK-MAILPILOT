@@ -1,3 +1,5 @@
+import { getOptionalEnv } from "../config/env";
+
 export const canonicalEmailCategories = [
   "work",
   "personal",
@@ -45,7 +47,7 @@ type EmailClassificationResult = {
 };
 
 function parseEnvList(name: string) {
-  return (process.env[name] ?? "")
+  return (getOptionalEnv(name) ?? "")
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean);
@@ -79,7 +81,7 @@ function includesKeyword(value: string, keywords: string[]) {
 }
 
 function parseCustomRulesFromEnv() {
-  const rawRules = process.env.EMAIL_CATEGORY_RULES;
+  const rawRules = getOptionalEnv("EMAIL_CATEGORY_RULES");
   if (!rawRules?.trim()) {
     return [];
   }
