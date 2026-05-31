@@ -1,5 +1,5 @@
 import { UserModel } from "../models/user.model";
-import { sendEmailThroughGmail } from "./gmail.service";
+import { sendSystemEmail } from "./system-email.service";
 import { createNumericOtp, hashPassword, hashToken } from "../utils/auth";
 import { buildBrandedEmail } from "./email-template.service";
 import { getRequiredNumberEnv } from "../config/env";
@@ -44,7 +44,7 @@ export async function sendVerificationOtp(userId: string) {
   user.emailVerificationLastSentAt = new Date();
   await user.save();
 
-  await sendEmailThroughGmail({
+  await sendSystemEmail({
     to: user.email,
     subject: "Verify your MailPilot account",
     body: plainText,
@@ -128,7 +128,7 @@ export async function sendPasswordResetOtp(email: string) {
   user.passwordResetLastSentAt = new Date();
   await user.save();
 
-  await sendEmailThroughGmail({
+  await sendSystemEmail({
     to: user.email,
     subject: "Reset your MailPilot password",
     body: plainText,

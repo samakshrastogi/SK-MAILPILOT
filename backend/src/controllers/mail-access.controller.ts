@@ -6,7 +6,7 @@ import { GmailAccountModel } from "../models/gmail-account.model";
 import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { UserModel } from "../models/user.model";
 import { getGoogleAuthUrl } from "../services/google-oauth.service";
-import { sendEmailThroughGmail } from "../services/gmail.service";
+import { sendSystemEmail } from "../services/system-email.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { createNotification } from "../services/notification.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
@@ -276,8 +276,8 @@ export async function approveMailAccessRequest(req: AuthenticatedRequest, res: R
       )
     );
 
-    await sendEmailThroughGmail({
-      to: recipients.join(","),
+    await sendSystemEmail({
+      to: recipients,
       subject: `MailPilot access approved for ${requestDoc.requestedAccountEmail}`,
       body: plainText,
       htmlBody: html,

@@ -6,7 +6,7 @@ import { GmailAccountModel } from "../models/gmail-account.model";
 import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { UserModel } from "../models/user.model";
 import { exchangeGoogleCode, getGoogleAuthUrl } from "../services/google-oauth.service";
-import { sendEmailThroughGmail } from "../services/gmail.service";
+import { sendSystemEmail } from "../services/system-email.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { createNotification } from "../services/notification.service";
 import { recordAuditEvent } from "../services/audit.service";
@@ -337,7 +337,7 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
             String(requestDoc._id)
           );
 
-          await sendEmailThroughGmail({
+          await sendSystemEmail({
             to: getMailAccessAdminEmail(),
             subject: `Mail access request pending approval: ${requestedAccountEmail}`,
             body: pendingApprovalEmail.plainText,
