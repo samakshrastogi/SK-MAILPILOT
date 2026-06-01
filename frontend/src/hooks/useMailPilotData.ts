@@ -371,17 +371,21 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
     void loadFollowUps();
   }, [enabled, scope]);
 
-  async function syncInbox(mode: number | "all" | undefined = INBOX_FETCH_LIMIT) {
+  async function syncInbox(
+    mode: number | "all" | undefined = INBOX_FETCH_LIMIT,
+    syncScope?: { accountId?: string | null; includeAllAccounts?: boolean }
+  ) {
     if (!enabled) {
       return;
     }
 
     setSyncing(true);
     try {
+      const activeScope = syncScope ?? scope;
       const response = await fetchProcessedEmailsFromScopedInbox({
         maxResults: mode === "all" || mode === undefined ? INBOX_FETCH_LIMIT : Math.min(mode, INBOX_FETCH_LIMIT),
-        accountId: scope.accountId ?? undefined,
-        includeAllAccounts: scope.includeAllAccounts,
+        accountId: activeScope.accountId ?? undefined,
+        includeAllAccounts: activeScope.includeAllAccounts,
       });
       setLastSyncDurationMs(response.fetchDurationMs ?? 0);
       setLastSyncAt(new Date().toISOString());

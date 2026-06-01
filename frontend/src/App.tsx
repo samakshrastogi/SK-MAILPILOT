@@ -51,6 +51,26 @@ const MAIL_ACCESS_ADMIN_EMAIL = getRequiredViteEnv("VITE_MAIL_ACCESS_ADMIN_EMAIL
 const MAIL_ACCESS_SYNC_ERROR = "Connect a Gmail account before syncing inbox emails";
 const COMPOSE_PREFILL_STORAGE_KEY = "sk-mailpilot-compose-prefill";
 
+function getOauthAccountId(oauthResult: Record<string, unknown>) {
+  const account = oauthResult.account;
+  if (!account || typeof account !== "object") {
+    return null;
+  }
+
+  const id = (account as { id?: unknown }).id;
+  return typeof id === "string" && id.trim() ? id : null;
+}
+
+function getOauthAccountEmail(oauthResult: Record<string, unknown>) {
+  const account = oauthResult.account;
+  if (!account || typeof account !== "object") {
+    return null;
+  }
+
+  const email = (account as { email?: unknown }).email;
+  return typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+}
+
 function isGoogleTestingModeError(message: string) {
   const normalized = message.trim().toLowerCase();
   return (
@@ -174,7 +194,7 @@ function FirstSyncPrompt({
 
   const promptText =
     approvedMailCount > 0
-      ? "An approved mailbox is waiting. Connect it now, then run your first inbox sync."
+      ? "An approved mailbox is waiting. Connect it now and MailPilot will start the first inbox sync automatically."
       : pendingMailCount > 0
         ? "Your mailbox request is waiting for approval. Open the mail flow to review the next step."
         : "Connect or request Gmail access so MailPilot can fetch your inbox and build your workspace.";
@@ -275,6 +295,7 @@ export default function App() {
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [partialSyncRefreshDone, setPartialSyncRefreshDone] = useState(false);
   const syncCompletionHideTimerRef = useRef<number | null>(null);
+  const syncOverviewNavigationRef = useRef<string | null>(null);
   const isMailAccessAdmin = authUser?.email.trim().toLowerCase() === MAIL_ACCESS_ADMIN_EMAIL;
   const canViewAuditCenter = authUser?.role === "admin" || authUser?.role === "reviewer";
   const canManageTeam = authUser?.role === "admin";
@@ -450,12 +471,19 @@ export default function App() {
         }
 
         if (oauthResult.type === "google-account-success") {
+          const connectedAccountId = getOauthAccountId(oauthResult);
+          const connectedAccountEmail = getOauthAccountEmail(oauthResult);
+          let syncAccountId = connectedAccountId;
           try {
             const accountsResponse = await listGmailAccounts();
             setAccounts(accountsResponse.data);
             setFirstSyncPromptOpen(false);
-            setSelectedAccountId(null);
-            setIncludeAllAccounts(true);
+            const syncedAccount =
+              accountsResponse.data.find((account) => account.id === connectedAccountId) ??
+              accountsResponse.data.find((account) => account.email.trim().toLowerCase() === connectedAccountEmail);
+            syncAccountId = syncedAccount?.id ?? syncAccountId;
+            setSelectedAccountId(syncedAccount?.id ?? null);
+            setIncludeAllAccounts(!syncedAccount);
           } catch {
             setAccounts([]);
             setSelectedAccountId(null);
@@ -464,7 +492,11 @@ export default function App() {
           setFetchModalOpen(false);
           setMailAccessModalOpen(false);
           setConnectingAccount(false);
-          await mailPilot.refreshAll();
+          setSyncOverlayVisible(true);
+          await mailPilot.syncInbox(undefined, {
+            accountId: syncAccountId,
+            includeAllAccounts: !syncAccountId,
+          });
           return;
         }
 
@@ -488,7 +520,7 @@ export default function App() {
           setConnectingAccount(false);
           setMailAccessRequestMessage(
             String(oauthResult.status) === "approved"
-              ? `Mailbox ${String(oauthResult.requestedAccountEmail ?? "")} is verified and ready to sync.`
+              ? `Mailbox ${String(oauthResult.requestedAccountEmail ?? "")} is verified and ready to connect.`
               : `Mailbox ${String(oauthResult.requestedAccountEmail ?? "")} is verified with Google and sent for admin approval.`
           );
           setMailAccessError(null);
@@ -595,8 +627,14 @@ export default function App() {
     }));
     setSyncOverlayVisible(true);
     void fetchNotifications(setNotifications);
+    if (syncOverviewNavigationRef.current !== mailPilot.lastSyncAt) {
+      syncOverviewNavigationRef.current = mailPilot.lastSyncAt;
+      if (visibleRoute !== "dashboard") {
+        navigate("dashboard");
+      }
+    }
     hideSyncOverlaySoon();
-  }, [authUser?.id, mailPilot.lastSyncAt, mailPilot.lastSyncResult, mailPilot.syncing]);
+  }, [authUser?.id, mailPilot.lastSyncAt, mailPilot.lastSyncResult, mailPilot.syncing, navigate, visibleRoute]);
 
   useEffect(() => {
     if (!authUser) {
@@ -825,7 +863,7 @@ export default function App() {
       const response = await startMailAccessRequest({
         requestedAccountEmail: normalizedEmail,
       });
-      if (response.data.alreadyApproved || !response.data.authUrl) {
+      if (!response.data.authUrl) {
         try {
           const [accountsResponse, requestsResponse] = await Promise.all([
             listGmailAccounts(),
@@ -841,8 +879,11 @@ export default function App() {
         } catch {
           // Leave current UI state if refresh fails; the direct connect action remains available.
         }
+        const requestStatus = response.data.requestStatus;
         setMailAccessRequestMessage(
-          `Mailbox ${response.data.requestedAccountEmail} is already approved and ready to sync.`
+          response.data.alreadyApproved || requestStatus === "approved"
+            ? `Mailbox ${response.data.requestedAccountEmail} is already approved and ready to connect.`
+            : `Mailbox ${response.data.requestedAccountEmail} is sent for admin approval.`
         );
         setMailAccessError(null);
         await fetchNotifications(setNotifications);

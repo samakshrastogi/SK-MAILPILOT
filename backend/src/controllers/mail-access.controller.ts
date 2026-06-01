@@ -14,6 +14,22 @@ import { getMailAccessAdminEmail } from "../config/env";
 import { signState } from "../utils/auth";
 
 const adminEmail = getMailAccessAdminEmail();
+const requiredGmailScopes = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.modify",
+  "https://www.googleapis.com/auth/gmail.send",
+];
+
+function hasRequiredGmailScopes(scopeValue?: string | null) {
+  const scopes = new Set(
+    String(scopeValue ?? "")
+      .split(/\s+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+
+  return requiredGmailScopes.every((scope) => scopes.has(scope));
+}
 
 const requestStartSchema = z.object({
   requestedAccountEmail: z.string().trim().email(),
@@ -28,20 +44,20 @@ function buildApprovalEmail(name: string, requestedAccountEmail: string) {
     `Hi ${name},`,
     "",
     `Your MailPilot testing request for ${requestedAccountEmail} has been approved.`,
-    "This mailbox is now activated in SK MailPilot.",
+    "This mailbox is now approved in SK MailPilot.",
     "",
-    "Return to MailPilot and sync your inbox directly.",
+    "Return to MailPilot, connect the approved mailbox, then run Sync inbox.",
   ].join("\n");
 
   const html = buildBrandedEmail({
-    preheader: `${requestedAccountEmail} is approved and ready to sync in MailPilot.`,
+    preheader: `${requestedAccountEmail} is approved and ready to connect in MailPilot.`,
     eyebrow: "Mailbox approved",
     title: "Your mailbox access is ready",
     greeting: `Hi ${name},`,
     intro: `Your MailPilot testing request for ${requestedAccountEmail} has been approved.`,
     body: [
-      "This mailbox is now activated in SK MailPilot.",
-      "Return to MailPilot to connect the mailbox if needed, then run Sync inbox to bring messages into your workspace.",
+      "This mailbox is now approved in SK MailPilot.",
+      "Return to MailPilot, connect the approved mailbox, then run Sync inbox to bring messages into your workspace.",
     ],
     details: [
       { label: "Mailbox", value: requestedAccountEmail },
@@ -55,6 +71,62 @@ function buildApprovalEmail(name: string, requestedAccountEmail: string) {
   });
 
   return { plainText, html };
+}
+
+function buildPendingApprovalEmail(requesterName: string, requesterEmail: string, requestedAccountEmail: string, requestId: string) {
+  const plainText = [
+    "A MailPilot mailbox request is ready for admin approval.",
+    "",
+    `Requester: ${requesterName}`,
+    `Login email: ${requesterEmail}`,
+    `Requested mailbox: ${requestedAccountEmail}`,
+    `Request id: ${requestId}`,
+    "",
+    "Review this request in MailPilot:",
+    buildAppUrl("/mail-access"),
+  ].join("\n");
+
+  const html = buildBrandedEmail({
+    preheader: `${requestedAccountEmail} is waiting for admin approval.`,
+    eyebrow: "Admin review",
+    title: "New mailbox approval request",
+    greeting: "Hi Admin,",
+    intro: "A MailPilot mailbox request is ready for review.",
+    details: [
+      { label: "Requester", value: requesterName },
+      { label: "Login email", value: requesterEmail },
+      { label: "Requested mailbox", value: requestedAccountEmail },
+      { label: "Request ID", value: requestId },
+    ],
+    action: {
+      label: "Review request",
+      url: buildAppUrl("/mail-access"),
+    },
+    footerNote: "Approve only if this user should be allowed to connect and manage the requested mailbox in SK MailPilot.",
+  });
+
+  return { plainText, html };
+}
+
+async function sendPendingRequestAlerts(options: {
+  requesterName: string;
+  requesterEmail: string;
+  requestedAccountEmail: string;
+  requestId: string;
+}) {
+  const pendingApprovalEmail = buildPendingApprovalEmail(
+    options.requesterName,
+    options.requesterEmail,
+    options.requestedAccountEmail,
+    options.requestId
+  );
+
+  await sendSystemEmail({
+    to: getMailAccessAdminEmail(),
+    subject: `Mail access request pending approval: ${options.requestedAccountEmail}`,
+    body: pendingApprovalEmail.plainText,
+    htmlBody: pendingApprovalEmail.html,
+  });
 }
 
 async function getCurrentUser(req: AuthenticatedRequest) {
@@ -83,15 +155,139 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
       email: requestedAccountEmail,
       status: "active",
     })
-      .select({ _id: 1 })
+      .select({ _id: 1, scope: 1 })
       .lean();
 
-    if (existingActiveAccount) {
+    if (existingActiveAccount && hasRequiredGmailScopes(existingActiveAccount.scope)) {
       res.status(200).json({
         success: true,
         data: {
           requestedAccountEmail,
           alreadyApproved: true,
+          requestStatus: "approved",
+          authUrl: null,
+        },
+      });
+      return;
+    }
+
+    const existingApprovedRequest = await MailAccessRequestModel.findOne({
+      requesterEmail: user.email,
+      requestedAccountEmail,
+      status: "approved",
+    })
+      .select({ _id: 1 })
+      .lean();
+
+    if (existingApprovedRequest) {
+      res.status(200).json({
+        success: true,
+        data: {
+          requestedAccountEmail,
+          alreadyApproved: true,
+          requestStatus: "approved",
+          authUrl: null,
+        },
+      });
+      return;
+    }
+
+    if (requestedAccountEmail === user.email.trim().toLowerCase()) {
+      const requestDoc = await MailAccessRequestModel.findOneAndUpdate(
+        {
+          requesterEmail: user.email,
+          requestedAccountEmail,
+          status: "pending",
+        },
+        {
+          $set: {
+            userId: user._id,
+            requesterName: user.name,
+            requesterEmail: user.email,
+            loginEmail: user.email,
+            requestedAccountEmail,
+            requestedEmailVerifiedAt: new Date(),
+            status: "pending",
+          },
+          $unset: {
+            requestedEmailOtpHash: 1,
+            requestedEmailOtpExpiresAt: 1,
+          },
+        },
+        {
+          upsert: true,
+          returnDocument: "after",
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      try {
+        await sendPendingRequestAlerts({
+          requesterName: user.name,
+          requesterEmail: user.email,
+          requestedAccountEmail,
+          requestId: String(requestDoc._id),
+        });
+
+        requestDoc.notificationSentAt = new Date();
+        await requestDoc.save();
+      } catch {
+        // Keep the request pending even if the admin notification fails.
+      }
+
+      await createNotification({
+        userId: String(user._id),
+        type: "info",
+        title: "Mailbox sent for approval",
+        message: `${requestedAccountEmail} is waiting for admin approval.`,
+        metadata: {
+          kind: "mail-access-pending",
+          requestedAccountEmail,
+          requestId: String(requestDoc._id),
+        },
+      });
+      await recordAuditEvent({
+        userId: String(user._id),
+        actorUserId: req.auth?.userId ?? String(user._id),
+        kind: "mail-access-requested",
+        title: `Mailbox approval requested for ${requestedAccountEmail}`,
+        status: "info",
+        targetType: "mailbox-request",
+        targetId: String(requestDoc._id),
+        details: {
+          requestedAccountEmail,
+          status: "pending",
+          verifiedByLoginEmail: true,
+        },
+      });
+
+      const adminUser = await UserModel.findOne({
+        email: getMailAccessAdminEmail(),
+      })
+        .select({ _id: 1 })
+        .lean();
+
+      if (adminUser?._id) {
+        await createNotification({
+          userId: String(adminUser._id),
+          type: "warning",
+          title: "New mailbox approval request",
+          message: `${requestedAccountEmail} is waiting for approval.`,
+          metadata: {
+            kind: "mail-access-admin-review",
+            requestedAccountEmail,
+            requestId: String(requestDoc._id),
+            requesterEmail: user.email,
+          },
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          requestedAccountEmail,
+          alreadyApproved: false,
+          requestStatus: "pending",
           authUrl: null,
         },
       });
@@ -106,14 +302,7 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
     });
     const authUrl = getGoogleAuthUrl({
       redirectPath: "/api/accounts/google/callback",
-      scope: [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/gmail.send",
-      ],
+      scope: ["openid", "email", "profile"],
       state,
       loginHint: requestedAccountEmail,
     });
@@ -123,6 +312,7 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
       data: {
         requestedAccountEmail,
         alreadyApproved: false,
+        requestStatus: "verification_required",
         authUrl,
       },
     });
@@ -283,34 +473,6 @@ export async function approveMailAccessRequest(req: AuthenticatedRequest, res: R
       htmlBody: html,
     });
 
-    const activeAccountsCount = await GmailAccountModel.countDocuments({
-      userId: requestDoc.userId,
-      status: "active",
-    });
-    const approvedAccount = await GmailAccountModel.findOneAndUpdate(
-      {
-        userId: requestDoc.userId,
-        email: requestDoc.requestedAccountEmail,
-      },
-      {
-        $set: {
-          status: "active",
-          isPrimary: activeAccountsCount === 0,
-        },
-      },
-      {
-        returnDocument: "after",
-      }
-    );
-
-    if (approvedAccount && activeAccountsCount === 0) {
-      await UserModel.findByIdAndUpdate(requestDoc.userId, {
-        $set: {
-          primaryAccountId: approvedAccount._id,
-        },
-      });
-    }
-
     requestDoc.status = "approved";
     requestDoc.approvedAt = new Date();
     requestDoc.approvedByEmail = user.email;
@@ -320,7 +482,7 @@ export async function approveMailAccessRequest(req: AuthenticatedRequest, res: R
       userId: String(requestDoc.userId),
       type: "success",
       title: "Mailbox approved",
-      message: `${requestDoc.requestedAccountEmail} is approved and ready to sync in MailPilot.`,
+      message: `${requestDoc.requestedAccountEmail} is approved and ready to connect in MailPilot.`,
       metadata: {
         kind: "mail-access-approved",
         requestedAccountEmail: requestDoc.requestedAccountEmail,

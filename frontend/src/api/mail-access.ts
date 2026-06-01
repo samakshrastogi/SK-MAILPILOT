@@ -7,6 +7,7 @@ export async function startMailAccessRequest(payload: { requestedAccountEmail: s
     ApiEnvelope<{
       requestedAccountEmail: string;
       alreadyApproved: boolean;
+      requestStatus?: "approved" | "pending" | "verification_required";
       authUrl: string | null;
     }>
   >("/api/mail-access/request/start", {

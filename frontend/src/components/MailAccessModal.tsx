@@ -51,10 +51,10 @@ export function MailAccessModal({
   const hasPendingRequestedEmail = pendingRequests.some(
     (request) => request.requestedAccountEmail === normalizedRequestedEmail
   );
-  const hasApprovedReadyMessage = (requestSentMessage ?? "").toLowerCase().includes("already approved and ready to sync");
+  const hasApprovedReadyMessage = (requestSentMessage ?? "").toLowerCase().includes("ready to connect");
   const showRequestSuccess = Boolean(requestSentMessage) && !hasConnectedRequestedEmail;
   const canStartOtpRequest =
-    !hasConnectedRequestedEmail && !canConnectApprovedMail && !hasApprovedReadyMessage;
+    !hasConnectedRequestedEmail && !canConnectApprovedMail && !hasApprovedReadyMessage && !hasPendingRequestedEmail;
   const canShowConnectAction = (canConnectApprovedMail || hasApprovedReadyMessage) && !hasConnectedRequestedEmail;
   const shouldShowApprovedChoices =
     approvedRequests.length > 0 && !canShowConnectAction && !hasConnectedRequestedEmail;
@@ -79,7 +79,7 @@ export function MailAccessModal({
               Gmail access is limited
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600 sm:mt-2 sm:leading-6">
-              Verify the mailbox with Google, then wait for approval. Once approved, it will be ready to sync.
+              Verify the mailbox with Google, then wait for approval. Once approved, it will be ready to connect.
             </p>
           </div>
 

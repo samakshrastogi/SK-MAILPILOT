@@ -229,28 +229,6 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
       }
     }
 
-    const grantedScopes = new Set(
-      String(result.tokens.scope ?? callbackScope ?? "")
-        .split(/\s+/)
-        .map((value) => value.trim())
-        .filter(Boolean)
-    );
-
-    if (!requiredGmailScopes.every((scope) => grantedScopes.has(scope))) {
-      throw new Error(
-        "Google did not grant the required Gmail permissions. Reconnect this mail and approve Gmail read, modify, and send access."
-      );
-    }
-
-    const existingAccounts = await GmailAccountModel.countDocuments({
-      userId: state.userId,
-      status: "active",
-    });
-    const existingAccount = await GmailAccountModel.findOne({
-      userId: state.userId,
-      email: result.profile.email,
-    });
-
     if (state.kind === "request-mail-access") {
       if (!requestedAccountEmail) {
         throw new Error("Requested mailbox is missing from the verification flow");
@@ -263,43 +241,6 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
       })
         .select({ _id: 1 })
         .lean();
-
-      const accountStatus = approvedRequest ? "active" : "pending_approval";
-      const account = await GmailAccountModel.findOneAndUpdate(
-        {
-          userId: state.userId,
-          email: result.profile.email,
-        },
-        {
-          $set: {
-            provider: "google",
-            displayName: result.profile.name,
-            googleSubject: result.profile.id,
-            accessToken: result.tokens.access_token ?? existingAccount?.accessToken ?? null,
-            refreshToken: result.tokens.refresh_token ?? existingAccount?.refreshToken ?? null,
-            scope: String(result.tokens.scope ?? callbackScope ?? ""),
-            tokenExpiryDate: result.tokens.expiry_date
-              ? new Date(result.tokens.expiry_date)
-              : existingAccount?.tokenExpiryDate ?? null,
-            status: accountStatus,
-            isPrimary: existingAccount?.isPrimary ?? existingAccounts === 0,
-            ownerUserId: existingAccount?.ownerUserId ?? state.userId,
-          },
-        },
-        {
-          upsert: true,
-          returnDocument: "after",
-          setDefaultsOnInsert: true,
-        }
-      );
-
-      if (accountStatus === "active" && existingAccounts === 0) {
-        await UserModel.findByIdAndUpdate(state.userId, {
-          $set: {
-            primaryAccountId: account._id,
-          },
-        });
-      }
 
       if (!approvedRequest) {
         const requestDoc = await MailAccessRequestModel.findOneAndUpdate(
@@ -435,6 +376,28 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
       );
       return;
     }
+
+    const grantedScopes = new Set(
+      String(result.tokens.scope ?? callbackScope ?? "")
+        .split(/\s+/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+    );
+
+    if (!requiredGmailScopes.every((scope) => grantedScopes.has(scope))) {
+      throw new Error(
+        "Google did not grant the required Gmail permissions. Reconnect this mail and approve Gmail read, modify, and send access."
+      );
+    }
+
+    const existingAccounts = await GmailAccountModel.countDocuments({
+      userId: state.userId,
+      status: "active",
+    });
+    const existingAccount = await GmailAccountModel.findOne({
+      userId: state.userId,
+      email: result.profile.email,
+    });
 
     const account = await GmailAccountModel.findOneAndUpdate(
       {

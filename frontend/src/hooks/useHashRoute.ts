@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type AppRoute =
   | "dashboard"
@@ -42,9 +42,9 @@ export function useHashRoute() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
 
-  function navigate(nextRoute: AppRoute) {
+  const navigate = useCallback((nextRoute: AppRoute) => {
     window.location.hash = `/${nextRoute}`;
-  }
+  }, []);
 
   return { route, navigate };
 }
