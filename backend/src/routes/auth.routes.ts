@@ -11,6 +11,7 @@ import {
   resetPassword,
   resendOtp,
   startGoogleLogin,
+  updateProfile,
   verifyOtp,
 } from "../controllers/auth.controller";
 
@@ -25,6 +26,7 @@ router.post("/reset-password", resetPassword);
 router.get("/google/start", startGoogleLogin);
 router.get("/google/callback", completeGoogleLogin);
 router.get("/me", requireAuth, me);
+router.put("/profile", requireAuth, updateProfile);
 router.post("/logout", requireAuth, logout);
 
 export default router;

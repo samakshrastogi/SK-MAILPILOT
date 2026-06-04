@@ -57,6 +57,17 @@ export async function getCurrentUser() {
   return request<ApiEnvelope<{ user: AuthUser }>>("/api/auth/me");
 }
 
+export async function updateProfile(payload: {
+  name?: string;
+  avatarUrl?: string;
+  coverPhotoUrl?: string;
+}) {
+  return request<ApiEnvelope<{ user: AuthUser }>>("/api/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function logout() {
   return request<ApiEnvelope<{ loggedOut: boolean }>>("/api/auth/logout", {
     method: "POST",

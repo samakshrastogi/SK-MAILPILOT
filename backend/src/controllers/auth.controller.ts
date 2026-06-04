@@ -57,6 +57,23 @@ const resendOtpSchema = z.object({
   email: z.string().trim().email(),
 });
 
+const profileImageSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      !value ||
+      /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value) ||
+      /^https?:\/\//.test(value),
+    "Profile images must be uploaded image files"
+  );
+
+const profileUpdateSchema = z.object({
+  name: z.string().trim().min(2).optional(),
+  avatarUrl: profileImageSchema.optional(),
+  coverPhotoUrl: profileImageSchema.optional(),
+});
+
 function normalizeReturnTo(value?: string) {
   if (!value) {
     return "/dashboard";
@@ -104,6 +121,7 @@ function toAuthUser(user: {
   name: string;
   email: string;
   avatarUrl?: string;
+  coverPhotoUrl?: string;
   emailVerified?: boolean;
   authProviders?: string[];
   role?: string;
@@ -113,6 +131,7 @@ function toAuthUser(user: {
     name: user.name,
     email: user.email,
     avatarUrl: user.avatarUrl ?? null,
+    coverPhotoUrl: user.coverPhotoUrl ?? null,
     emailVerified: Boolean(user.emailVerified),
     authProviders: user.authProviders ?? [],
     role: user.role ?? "member",
@@ -408,6 +427,58 @@ export async function me(req: AuthenticatedRequest, res: Response) {
       user: toAuthUser(userDoc.toObject()),
     },
   });
+}
+
+export async function updateProfile(req: AuthenticatedRequest, res: Response) {
+  try {
+    const payload = profileUpdateSchema.parse(req.body ?? {});
+    const update: Record<string, unknown> = {};
+
+    if (typeof payload.name === "string") {
+      update.name = payload.name;
+    }
+    if (typeof payload.avatarUrl === "string") {
+      update.avatarUrl = payload.avatarUrl || undefined;
+    }
+    if (typeof payload.coverPhotoUrl === "string") {
+      update.coverPhotoUrl = payload.coverPhotoUrl || undefined;
+    }
+
+    const userDoc = await UserModel.findByIdAndUpdate(
+      req.auth?.userId,
+      { $set: update },
+      { new: true }
+    );
+
+    if (!userDoc) {
+      res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: toAuthUser(userDoc.toObject()),
+      },
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid profile update request",
+        details: error.flatten(),
+      });
+      return;
+    }
+
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update profile",
+    });
+  }
 }
 
 export async function logout(req: AuthenticatedRequest, res: Response) {

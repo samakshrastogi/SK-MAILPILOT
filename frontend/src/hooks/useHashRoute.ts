@@ -5,6 +5,7 @@ export type AppRoute =
   | "emails"
   | "compose"
   | "chatbot"
+  | "profile"
   | "mail-access"
   | "sender-insights"
   | "sync-history"
@@ -17,6 +18,7 @@ const validRoutes = new Set<AppRoute>([
   "emails",
   "compose",
   "chatbot",
+  "profile",
   "mail-access",
   "sender-insights",
   "sync-history",

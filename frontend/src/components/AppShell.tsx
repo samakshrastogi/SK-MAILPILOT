@@ -3,7 +3,6 @@ import {
   FiChevronDown,
   FiGrid,
   FiHelpCircle,
-  FiLogOut,
   FiMail,
   FiRefreshCcw,
   FiSend,
@@ -45,7 +44,6 @@ type AppShellProps = {
   onRefresh: () => void;
   refreshing: boolean;
   user: AuthUser;
-  onLogout: () => void;
   canViewMailAccessRequests?: boolean;
   canViewAuditCenter?: boolean;
   canManageTeam?: boolean;
@@ -67,7 +65,6 @@ export function AppShell({
   onRefresh,
   refreshing,
   user,
-  onLogout,
   canViewMailAccessRequests = false,
   canViewAuditCenter = false,
   canManageTeam = false,
@@ -83,12 +80,10 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement | null>(null);
-  const profileRef = useRef<HTMLDivElement | null>(null);
   const accountScopeRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = navItemsConfig.filter((item) => {
@@ -113,9 +108,6 @@ export function AppShell({
       const target = event.target as Node;
       if (notificationRef.current && !notificationRef.current.contains(target)) {
         setNotificationMenuOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(target)) {
-        setProfileMenuOpen(false);
       }
       if (accountScopeRef.current && !accountScopeRef.current.contains(target)) {
         setAccountMenuOpen(false);
@@ -194,7 +186,6 @@ export function AppShell({
                   <button
                     onClick={() => {
                       setNotificationMenuOpen((v) => !v);
-                      setProfileMenuOpen(false);
                     }}
                     className={`${actionBtn} relative`}
                   >
@@ -275,12 +266,14 @@ export function AppShell({
                 </div>
 
                 {/* PROFILE */}
-                <div className="relative" ref={profileRef}>
+                <div className="relative">
                   <button
                     onClick={() => {
-                      setProfileMenuOpen((v) => !v);
                       setNotificationMenuOpen(false);
+                      setAccountMenuOpen(false);
+                      navigate("profile");
                     }}
+                    title="Open profile"
                     className="h-9 w-9 overflow-hidden rounded-lg border border-slate-200 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-10 sm:w-10 sm:rounded-xl"
                   >
                     {user.avatarUrl && !avatarBroken ? (
@@ -296,43 +289,6 @@ export function AppShell({
                       </div>
                     )}
                   </button>
-
-                  {profileMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+0.125rem)] z-[100] w-[calc(100vw-1.5rem)] max-w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200 sm:w-80">
-                      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white p-3 sm:p-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-                            {user.avatarUrl && !avatarBroken ? (
-                              <img
-                                src={user.avatarUrl}
-                                onError={() => setAvatarBroken(true)}
-                                className="h-full w-full object-cover"
-                                alt={user.name}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-sm font-semibold text-white">
-                                {getUserInitials(user.name)}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                              Account
-                            </p>
-                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">{user.name}</p>
-                            <p className="mt-0.5 truncate text-xs text-slate-500">{user.email}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={onLogout}
-                        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm font-semibold text-rose-600 transition-colors duration-150 hover:bg-rose-50/80 sm:px-4"
-                      >
-                        <span className="min-w-0 truncate">Logout</span>
-                        <FiLogOut className="shrink-0 text-lg" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -383,7 +339,6 @@ export function AppShell({
                   }
                   setAccountMenuOpen((current) => !current);
                   setNotificationMenuOpen(false);
-                  setProfileMenuOpen(false);
                 }}
                 disabled={!accounts.length}
                 className="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2.5 py-1.5 text-left shadow-sm transition hover:border-sky-200 hover:bg-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70 sm:min-h-14 sm:gap-3 sm:rounded-2xl sm:px-3 sm:py-2"

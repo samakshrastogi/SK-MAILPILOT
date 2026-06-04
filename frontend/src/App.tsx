@@ -9,6 +9,7 @@ import {
   resetPassword,
   resendOtp,
   startGoogleLogin,
+  updateProfile,
   verifyOtp,
 } from "./api/auth";
 import { listGmailAccounts, startGoogleAccountConnect } from "./api/account";
@@ -38,6 +39,7 @@ import { ComposePage } from "./pages/ComposePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmailsPage } from "./pages/EmailsPage";
 import { MailAccessRequestsPage } from "./pages/MailAccessRequestsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { SenderInsightsPage } from "./pages/SenderInsightsPage";
 import { SyncHistoryPage } from "./pages/SyncHistoryPage";
 import { TeamPage } from "./pages/TeamPage";
@@ -606,6 +608,12 @@ export default function App() {
       return;
     }
 
+    if (syncOverviewNavigationRef.current === mailPilot.lastSyncAt) {
+      return;
+    }
+
+    syncOverviewNavigationRef.current = mailPilot.lastSyncAt;
+
     setSyncProgress((current) => ({
       userId: current?.userId ?? authUser?.id ?? "",
       status: "completed",
@@ -627,11 +635,8 @@ export default function App() {
     }));
     setSyncOverlayVisible(true);
     void fetchNotifications(setNotifications);
-    if (syncOverviewNavigationRef.current !== mailPilot.lastSyncAt) {
-      syncOverviewNavigationRef.current = mailPilot.lastSyncAt;
-      if (visibleRoute !== "dashboard") {
-        navigate("dashboard");
-      }
+    if (visibleRoute !== "dashboard") {
+      navigate("dashboard");
     }
     hideSyncOverlaySoon();
   }, [authUser?.id, mailPilot.lastSyncAt, mailPilot.lastSyncResult, mailPilot.syncing, navigate, visibleRoute]);
@@ -1149,6 +1154,12 @@ export default function App() {
     window.location.hash = "";
   }
 
+  async function handleSaveProfile(payload: { name: string; avatarUrl: string; coverPhotoUrl: string }) {
+    const response = await updateProfile(payload);
+    setAuthUser(response.data.user);
+    setStoredAuthUser(response.data.user);
+  }
+
   async function handleReadNotification(notification: AppNotification) {
     try {
       const response = await markNotificationRead(notification._id);
@@ -1301,6 +1312,16 @@ export default function App() {
         onClose={() => navigate("dashboard")}
         onSubmitRequest={handleChatAssistantRequest}
       />
+    ) : visibleRoute === "profile" ? (
+      <ProfilePage
+        user={authUser}
+        accounts={accounts}
+        mailAccessRequests={mailAccessRequests}
+        notifications={notifications}
+        mailPilot={mailPilot}
+        onSaveProfile={handleSaveProfile}
+        onLogout={() => void handleLogout()}
+      />
     ) : visibleRoute === "mail-access" ? (
       <MailAccessRequestsPage canView={isMailAccessAdmin} />
     ) : visibleRoute === "audit-center" ? (
@@ -1325,7 +1346,6 @@ export default function App() {
       onRefresh={() => void handleRefresh()}
       refreshing={mailPilot.refreshing}
       user={authUser}
-      onLogout={() => void handleLogout()}
       canViewMailAccessRequests={isMailAccessAdmin}
       canViewAuditCenter={canViewAuditCenter}
       canManageTeam={canManageTeam}

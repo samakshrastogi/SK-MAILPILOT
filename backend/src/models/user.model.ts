@@ -24,6 +24,11 @@ const userSchema = new Schema(
       default: undefined,
       trim: true,
     },
+    coverPhotoUrl: {
+      type: String,
+      default: undefined,
+      trim: true,
+    },
     emailVerified: {
       type: Boolean,
       default: false,
