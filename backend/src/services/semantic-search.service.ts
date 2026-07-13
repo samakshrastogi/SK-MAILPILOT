@@ -88,7 +88,7 @@ export async function semanticSearchEmails(
     .lean();
 
   const topic = (plan.topic ?? query).toLowerCase();
-  const topicWords = topic.split(/\s+/).filter((word) => word.length > 2);
+  const topicWords = topic.split(/\s+/).filter((word: string) => word.length > 2);
 
   const scored = candidates.map((email) => {
     const haystack = `${email.subject ?? ""} ${email.summary ?? ""} ${email.content ?? ""} ${email.sender ?? ""}`.toLowerCase();

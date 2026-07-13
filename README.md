@@ -312,3 +312,14 @@ Local defaults:
 - Mailpilot API: `http://localhost:5000`
 
 Set the same signing value in SK Central's `SSO_TOKEN_SECRET` and Mailpilot's `SK_CENTRAL_SSO_SECRET`. Configure the production Central web/API URLs through the `VITE_SK_CENTRAL_*` variables shown in `frontend/.env.example`.
+## Production environment handoff
+
+Use `backend/.env.production` for the Render API and `frontend/.env.production` for the Vercel app. These real files are ignored by Git; the tracked `.env.production.example` files are safe templates.
+
+Mailpilot reuses SK Central's Gemini key/model, Resend key, verified `MAIL_FROM` sender, and SSO signing secret. The backend prefers Gemini for email analysis when `GEMINI_API_KEY` is configured and retains Ollama as an optional local fallback.
+
+Before deploying, replace every `PASTE_...` value in `backend/.env.production`, especially the MongoDB URI and Google OAuth credentials. In Google Cloud, allow this callback URL:
+
+`https://sk-mailpilot.onrender.com/api/accounts/google/callback`
+
+Copy the backend file into Render's environment settings and the frontend file into Vercel's environment settings, then redeploy both services.
