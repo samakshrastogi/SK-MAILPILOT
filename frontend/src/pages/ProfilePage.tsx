@@ -23,7 +23,7 @@ type ProfilePageProps = {
   mailAccessRequests: MailAccessRequest[];
   notifications: AppNotification[];
   mailPilot: ReturnType<typeof useMailPilotData>;
-  onSaveProfile: (payload: { name: string; avatarUrl: string; coverPhotoUrl: string }) => Promise<void>;
+  onSaveProfile: (payload: { coverPhotoUrl: string }) => Promise<void>;
   onLogout: () => void;
 };
 
@@ -82,7 +82,7 @@ export function ProfilePage({
   const pendingRequests = mailAccessRequests.filter((request) => request.status === "pending");
   const unreadNotifications = notifications.filter((notification) => !notification.readAt).length;
   const primaryAccount = accounts.find((account) => account.isPrimary) ?? accounts[0] ?? null;
-  const authProviders = user.authProviders.length ? user.authProviders : ["password"];
+  const authProviders = ["sk-central"];
   const topDomains = mailPilot.analytics?.topDomains ?? [];
 
   const profileCompletion = useMemo(() => {
@@ -101,11 +101,7 @@ export function ProfilePage({
     setSaveMessage(null);
     setSaveError(null);
     try {
-      await onSaveProfile({
-        name: name.trim(),
-        avatarUrl: avatarUrl.trim(),
-        coverPhotoUrl: coverPhotoUrl.trim(),
-      });
+      await onSaveProfile({ coverPhotoUrl: coverPhotoUrl.trim() });
       setSaveMessage("Profile updated");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Failed to update profile");
@@ -162,7 +158,7 @@ export function ProfilePage({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-white">
-                    {getInitials(name)}
+                    {user.avatarInitials || getInitials(name)}
                   </div>
                 )}
               </div>
@@ -211,7 +207,7 @@ export function ProfilePage({
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-600">Edit</p>
-                <h3 className="truncate text-base font-semibold text-slate-900">Profile images</h3>
+                <h3 className="truncate text-base font-semibold text-slate-900">Identity and cover</h3>
               </div>
               <FiCamera className="shrink-0 text-slate-400" />
             </div>
@@ -221,6 +217,7 @@ export function ProfilePage({
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">Display name</span>
                 <input
                   value={name}
+                  disabled
                   onChange={(event) => setName(event.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 />
@@ -232,7 +229,7 @@ export function ProfilePage({
                       <FiCamera />
                       Profile picture
                     </span>
-                    {avatarUrl ? (
+                    {false ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -253,6 +250,7 @@ export function ProfilePage({
                       type="file"
                       accept="image/*"
                       className="sr-only"
+                      disabled
                       onChange={(event) => void handleImageUpload("avatar", event.target.files?.[0])}
                     />
                   </label>
@@ -307,7 +305,7 @@ export function ProfilePage({
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FiSave />
-                {saving ? "Saving..." : "Save profile"}
+                {saving ? "Saving..." : "Save cover photo"}
               </button>
             </div>
           </div>

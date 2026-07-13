@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiMail, FiRefreshCcw, FiX } from "react-icons/fi";
 
-import {
-  forgotPassword,
-  getCurrentUser,
-  loginWithPassword,
-  registerWithPassword,
-  resetPassword,
-  resendOtp,
-  startGoogleLogin,
-  updateProfile,
-  verifyOtp,
-} from "./api/auth";
+import { getCurrentUser, updateProfile } from "./api/auth";
 import { listGmailAccounts, startGoogleAccountConnect } from "./api/account";
 import { getInboxSyncProgress } from "./api/email";
 import {
@@ -24,7 +14,7 @@ import {
   listMailAccessRequests,
   startMailAccessRequest,
 } from "./api/mail-access";
-import { ApiRequestError, getAuthToken, getStoredAuthUser, setAuthToken, setStoredAuthUser } from "./api/client";
+import { logoutFromCentral, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { FetchInboxModal } from "./components/FetchInboxModal";
 import { FloatingChatbot } from "./components/FloatingChatbot";
@@ -33,7 +23,6 @@ import { useHashRoute } from "./hooks/useHashRoute";
 import { useMailPilotData } from "./hooks/useMailPilotData";
 import { useRealtimeStream } from "./hooks/useRealtimeStream";
 import { AuditCenterPage } from "./pages/AuditCenterPage";
-import { AuthPage } from "./pages/AuthPage";
 import { ChatbotPage } from "./pages/ChatbotPage";
 import { ComposePage } from "./pages/ComposePage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -273,15 +262,13 @@ async function fetchNotifications(setNotifications: (notifications: AppNotificat
 export default function App() {
   const { route, navigate } = useHashRoute();
   const [initialOauthResult] = useState<Record<string, unknown> | null>(() => readStoredOauthResult());
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredAuthUser<AuthUser>());
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [accounts, setAccounts] = useState<GmailAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [includeAllAccounts, setIncludeAllAccounts] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [, setConnectingAccount] = useState(false);
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
-  const [pendingPasswordResetEmail, setPendingPasswordResetEmail] = useState<string | null>(null);
   const [mailAccessModalOpen, setMailAccessModalOpen] = useState(false);
   const [requestingMailAccess, setRequestingMailAccess] = useState(false);
   const [mailAccessRequestedEmail, setMailAccessRequestedEmail] = useState("");
@@ -455,23 +442,12 @@ export default function App() {
 
   useEffect(() => {
     const oauthResult = initialOauthResult;
-    if (!oauthResult) {
+    if (!oauthResult || !authUser) {
       return;
     }
 
     void (async () => {
       try {
-        if (oauthResult.type === "google-login-success" && oauthResult.token && oauthResult.user) {
-          await syncAuthState(String(oauthResult.token), oauthResult.user as AuthUser);
-          setAuthError(null);
-          return;
-        }
-
-        if (oauthResult.type === "google-login-error") {
-          setAuthError(String(oauthResult.error ?? "Google login failed"));
-          return;
-        }
-
         if (oauthResult.type === "google-account-success") {
           const connectedAccountId = getOauthAccountId(oauthResult);
           const connectedAccountEmail = getOauthAccountEmail(oauthResult);
@@ -551,7 +527,7 @@ export default function App() {
         setAuthLoading(false);
       }
     })();
-  }, [initialOauthResult]);
+  }, [authUser, initialOauthResult]);
 
   useEffect(() => {
     if (!mailPilot.syncing) {
@@ -711,87 +687,28 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function bootstrap() {
-      if (initialOauthResult) {
-        setAuthLoading(false);
-        return;
-      }
-
-      const token = getAuthToken();
-      if (!token) {
-        setAuthLoading(false);
-        return;
-      }
-
       try {
+        const token = await requestCentralAppToken();
         const me = await getCurrentUser();
-        if (cancelled) {
-          return;
-        }
-
-        setAuthUser(me.data.user);
-        setStoredAuthUser(me.data.user);
-        const accountsResponse = await listGmailAccounts();
-        if (cancelled) {
-          return;
-        }
-
-        setAccounts(accountsResponse.data);
-        setSelectedAccountId(null);
-        setIncludeAllAccounts(true);
+        if (cancelled) return;
+        await syncAuthState(token, me.data.user);
         setAuthError(null);
-        const accessResponse = await listMyMailAccessRequests();
-        if (!cancelled) {
-          setMailAccessRequests(accessResponse.data);
-        }
-        if (isMailAccessAdmin) {
-          try {
-            const adminResponse = await listMailAccessRequests();
-            if (!cancelled) {
-              setAdminPendingMailAccessCount(
-                adminResponse.data.filter((request) => request.status === "pending").length
-              );
-            }
-          } catch {
-            if (!cancelled) {
-              setAdminPendingMailAccessCount(0);
-            }
-          }
-        }
       } catch (error) {
-        if (error instanceof ApiRequestError && error.status === 401) {
-          setAuthToken(null);
-          setStoredAuthUser(null);
-          setAuthUser(null);
-          setAccounts([]);
-          setPendingVerificationEmail(null);
-          setPendingPasswordResetEmail(null);
-          setAuthError(error.message);
-          setMailAccessRequests([]);
-          setAdminPendingMailAccessCount(0);
-          setNotifications([]);
-        } else {
-          setAuthError(error instanceof Error ? error.message : "Unable to restore session");
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : "SK Central login required");
+          redirectToCentralLogin();
         }
       } finally {
-        if (!cancelled) {
-          setAuthLoading(false);
-        }
+        if (!cancelled) setAuthLoading(false);
       }
     }
-
     void bootstrap();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialOauthResult]);
-
+    return () => { cancelled = true; };
+  }, []);
   async function syncAuthState(token: string, user: AuthUser) {
     setAuthToken(token);
     setAuthUser(user);
-    setStoredAuthUser(user);
     try {
       const accountsResponse = await listGmailAccounts();
       setAccounts(accountsResponse.data);
@@ -804,8 +721,6 @@ export default function App() {
       setSelectedAccountId(null);
       setIncludeAllAccounts(true);
     }
-    setPendingVerificationEmail(null);
-    setPendingPasswordResetEmail(null);
     setMailAccessRequestMessage(null);
     setMailAccessError(null);
     setMailAccessRequestedEmail(user.email);
@@ -902,51 +817,6 @@ export default function App() {
       );
     } finally {
       setRequestingMailAccess(false);
-    }
-  }
-
-  async function handlePasswordAuth(
-    kind: "login" | "register" | "forgot",
-    payload:
-      | { email: string; password: string }
-      | { name: string; email: string; password: string }
-      | { email: string }
-  ) {
-    setAuthLoading(true);
-    try {
-      if (kind === "register") {
-        const response = await registerWithPassword(
-          payload as { name: string; email: string; password: string }
-        );
-        setPendingVerificationEmail(response.data.email);
-        setPendingPasswordResetEmail(null);
-      } else {
-        if (kind === "forgot") {
-          const response = await forgotPassword(payload as { email: string });
-          setPendingPasswordResetEmail(response.data.email);
-          setPendingVerificationEmail(null);
-        } else {
-          const response = await loginWithPassword(payload as { email: string; password: string });
-          await syncAuthState(response.data.token, response.data.user);
-        }
-      }
-      setAuthError(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Authentication failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleGoogleLogin() {
-    setAuthLoading(true);
-    try {
-      const response = await startGoogleLogin(window.location.hash.replace(/^#/, "") || "/dashboard");
-      window.location.assign(response.data.authUrl);
-      return;
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Google login failed");
-      setAuthLoading(false);
     }
   }
 
@@ -1133,31 +1003,12 @@ export default function App() {
   }
 
   async function handleLogout() {
-    setAuthToken(null);
-    setStoredAuthUser(null);
-    setAuthUser(null);
-    setAccounts([]);
-    setSelectedAccountId(null);
-    setIncludeAllAccounts(true);
-    setPendingVerificationEmail(null);
-    setPendingPasswordResetEmail(null);
-    setFetchModalOpen(false);
-    setMailAccessModalOpen(false);
-    setMailAccessRequestedEmail("");
-    setMailAccessRequestMessage(null);
-    setMailAccessError(null);
-    setMailAccessRequests([]);
-    setAdminPendingMailAccessCount(0);
-    setNotifications([]);
-    setSyncProgress(null);
-    setFirstSyncPromptOpen(false);
-    window.location.hash = "";
+    await logoutFromCentral();
   }
 
-  async function handleSaveProfile(payload: { name: string; avatarUrl: string; coverPhotoUrl: string }) {
+  async function handleSaveProfile(payload: { coverPhotoUrl: string }) {
     const response = await updateProfile(payload);
     setAuthUser(response.data.user);
-    setStoredAuthUser(response.data.user);
   }
 
   async function handleReadNotification(notification: AppNotification) {
@@ -1213,81 +1064,12 @@ export default function App() {
     }
   }
 
-  async function handleVerifyOtp(payload: { email: string; otp: string }) {
-    setAuthLoading(true);
-    try {
-      const response = await verifyOtp(payload);
-      await syncAuthState(response.data.token, response.data.user);
-      setAuthError(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "OTP verification failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleResendOtp(payload: { email: string }) {
-    setAuthLoading(true);
-    try {
-      const response = await resendOtp(payload);
-      setPendingVerificationEmail(response.data.email);
-      setPendingPasswordResetEmail(null);
-      setAuthError(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Failed to resend OTP");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleResetPassword(payload: { email: string; otp: string; newPassword: string }) {
-    setAuthLoading(true);
-    try {
-      const response = await resetPassword(payload);
-      await syncAuthState(response.data.token, response.data.user);
-      setAuthError(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Password reset failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleResendPasswordResetOtp(payload: { email: string }) {
-    setAuthLoading(true);
-    try {
-      const response = await forgotPassword({ email: payload.email });
-      setPendingPasswordResetEmail(response.data.email);
-      setPendingVerificationEmail(null);
-      setAuthError(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Failed to resend password reset OTP");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
   if (authLoading && !authUser) {
     return <div className="min-h-screen bg-slate-950 text-white" />;
   }
 
   if (!authUser) {
-    return (
-      <AuthPage
-        loading={authLoading}
-        error={authError}
-        pendingVerificationEmail={pendingVerificationEmail}
-        pendingPasswordResetEmail={pendingPasswordResetEmail}
-        onLogin={(payload) => handlePasswordAuth("login", payload)}
-        onRegister={(payload) => handlePasswordAuth("register", payload)}
-        onForgotPassword={(payload) => handlePasswordAuth("forgot", payload)}
-        onVerifyOtp={handleVerifyOtp}
-        onResendOtp={handleResendOtp}
-        onResetPassword={handleResetPassword}
-        onResendPasswordResetOtp={handleResendPasswordResetOtp}
-        onGoogleLogin={handleGoogleLogin}
-      />
-    );
+    return <div className="grid min-h-screen place-items-center bg-slate-950 p-6 text-center text-sm font-semibold text-white">{authError || "Redirecting to SK Central..."}</div>;
   }
 
   const page =
@@ -1358,6 +1140,7 @@ export default function App() {
       includeAllAccounts={includeAllAccounts}
       onAccountScopeChange={handleAccountScopeChange}
       pendingMailAccessCount={pendingApprovalCount}
+      onLogout={() => void handleLogout()}
     >
       {mailPilot.error ? <div className="error-banner">{mailPilot.error}</div> : null}
       {syncOverlayVisible ? (

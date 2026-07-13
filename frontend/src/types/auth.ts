@@ -3,6 +3,7 @@ export type AuthUser = {
   name: string;
   email: string;
   avatarUrl?: string | null;
+  avatarInitials?: string;
   coverPhotoUrl?: string | null;
   emailVerified: boolean;
   authProviders: string[];

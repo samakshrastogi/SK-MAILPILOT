@@ -7,6 +7,10 @@ import {
   FiRefreshCcw,
   FiSend,
   FiClipboard,
+  FiCheckCircle,
+  FiExternalLink,
+  FiLogOut,
+  FiUser,
   FiShield,
   FiUsers,
 } from "react-icons/fi";
@@ -16,6 +20,7 @@ import type { ReactNode } from "react";
 import type { AuthUser, GmailAccount } from "../types/auth";
 import type { AppRoute } from "../hooks/useHashRoute";
 import type { AppNotification } from "../types/email";
+import { CENTRAL_PROFILE_URL } from "../api/client";
 
 function getUserInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -56,6 +61,7 @@ type AppShellProps = {
   includeAllAccounts: boolean;
   onAccountScopeChange: (value: string) => void;
   pendingMailAccessCount?: number;
+  onLogout: () => void;
   children: ReactNode;
 };
 
@@ -77,14 +83,17 @@ export function AppShell({
   includeAllAccounts,
   onAccountScopeChange,
   pendingMailAccessCount = 0,
+  onLogout,
   children,
 }: AppShellProps) {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const accountScopeRef = useRef<HTMLDivElement | null>(null);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = navItemsConfig.filter((item) => {
     if (item.accessRequired === "requests") {
@@ -111,6 +120,9 @@ export function AppShell({
       }
       if (accountScopeRef.current && !accountScopeRef.current.contains(target)) {
         setAccountMenuOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) {
+        setProfileMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -264,31 +276,46 @@ export function AppShell({
                     </div>
                   )}
                 </div>
-
                 {/* PROFILE */}
-                <div className="relative">
+                <div ref={profileMenuRef} className="relative">
                   <button
+                    type="button"
                     onClick={() => {
                       setNotificationMenuOpen(false);
                       setAccountMenuOpen(false);
-                      navigate("profile");
+                      setProfileMenuOpen((current) => !current);
                     }}
-                    title="Open profile"
+                    title="Open account menu"
+                    aria-expanded={profileMenuOpen}
                     className="h-9 w-9 overflow-hidden rounded-lg border border-slate-200 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-10 sm:w-10 sm:rounded-xl"
                   >
                     {user.avatarUrl && !avatarBroken ? (
-                      <img
-                        src={user.avatarUrl}
-                        onError={() => setAvatarBroken(true)}
-                        className="h-full w-full object-cover"
-                        alt={user.name}
-                      />
+                      <img src={user.avatarUrl} onError={() => setAvatarBroken(true)} className="h-full w-full object-cover" alt={user.name} />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white text-xs font-semibold">
-                        {getUserInitials(user.name)}
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-xs font-semibold text-white">
+                        {user.avatarInitials || getUserInitials(user.name)}
                       </div>
                     )}
                   </button>
+                  {profileMenuOpen ? (
+                    <div className="absolute right-0 top-[calc(100%+0.6rem)] z-[110] w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                      <div className="border-b border-slate-100 p-4">
+                        <p className="truncate text-sm font-semibold text-slate-950">{user.name}</p>
+                        <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>
+                      </div>
+                      <div className="p-2">
+                        <button type="button" onClick={() => { setProfileMenuOpen(false); navigate("profile"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                          <FiUser className="text-sky-600" /> View profile
+                        </button>
+                        <a href={CENTRAL_PROFILE_URL} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                          <FiExternalLink className="text-sky-600" /> Manage your SK account
+                        </a>
+                        <button type="button" onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50">
+                          <FiLogOut /> Logout
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -390,6 +417,16 @@ export function AppShell({
         </section>
       </div>
 
+      <a
+        className="fixed bottom-24 right-4 z-50 flex items-center gap-3 rounded-[22px] border border-white/80 bg-white px-5 py-4 text-sm font-bold text-slate-950 shadow-[0_20px_55px_-22px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:shadow-xl"
+        href="https://www.linkedin.com/in/samaksh-rastogi-9638b9254/"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Developed by Samaksh Rastogi on LinkedIn"
+      >
+        <FiCheckCircle className="text-xl text-cyan-600" />
+        <span>Developed by Samaksh Rastogi</span>
+      </a>
       {/* MAIN */}
       <main className={`mx-auto max-w-7xl ${route === "chatbot" ? "px-2 py-2 sm:px-4 sm:py-6" : "px-4 py-6"}`}>
         <div className={route === "chatbot" ? "space-y-0" : "space-y-6"}>{children}</div>

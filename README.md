@@ -297,3 +297,18 @@ Use this routine when managing active mailboxes:
 - Work through urgent or overdue replies.
 - Use sender insights to reduce repeated manual work.
 - Use sync history and audit center when numbers, approvals, or sent activity need explanation.
+
+## SK Central Identity
+
+Mailpilot uses SK Central as its only user login and logout system. The browser requests a short-lived `sk-mailpilot` app token from SK Central, and the Mailpilot API validates that token with `SK_CENTRAL_SSO_SECRET`. Name, email, role, profile image, and profile initials come from the Central identity.
+
+Google OAuth remains only for verifying and connecting approved Gmail mailboxes. It is not a Mailpilot sign-in method.
+
+Local defaults:
+
+- SK Central web: `http://localhost:5475`
+- SK Central API: `http://localhost:4002/api`
+- Mailpilot web: `http://localhost:5173`
+- Mailpilot API: `http://localhost:5000`
+
+Set the same signing value in SK Central's `SSO_TOKEN_SECRET` and Mailpilot's `SK_CENTRAL_SSO_SECRET`. Configure the production Central web/API URLs through the `VITE_SK_CENTRAL_*` variables shown in `frontend/.env.example`.
