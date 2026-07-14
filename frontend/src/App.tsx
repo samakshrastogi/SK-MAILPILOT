@@ -688,16 +688,25 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     async function bootstrap() {
+      let token: string;
       try {
-        const token = await requestCentralAppToken();
+        token = await requestCentralAppToken();
+      } catch (error) {
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : "SK Central login required");
+          redirectToCentralLogin();
+        }
+        return;
+      }
+
+      try {
         const me = await getCurrentUser();
         if (cancelled) return;
         await syncAuthState(token, me.data.user);
         setAuthError(null);
       } catch (error) {
         if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : "SK Central login required");
-          redirectToCentralLogin();
+          setAuthError(error instanceof Error ? error.message : "Unable to start SK Mailpilot");
         }
       } finally {
         if (!cancelled) setAuthLoading(false);

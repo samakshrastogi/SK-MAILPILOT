@@ -1,7 +1,10 @@
 import { getRequiredViteEnv } from "../config/env";
 
 const API_BASE_URL = getRequiredViteEnv("VITE_API_BASE_URL");
-const CENTRAL_AUTH_BASE_URL = (import.meta.env.VITE_SK_CENTRAL_AUTH_URL ?? "http://localhost:4002/api").replace(/\/$/, "");
+const configuredCentralAuthBaseUrl = import.meta.env.VITE_SK_CENTRAL_AUTH_URL ?? "http://localhost:4002/api";
+const CENTRAL_AUTH_BASE_URL = (import.meta.env.PROD && configuredCentralAuthBaseUrl.includes("sk-central.onrender.com")
+  ? "https://www.sk-hub.in/api"
+  : configuredCentralAuthBaseUrl).replace(/\/$/, "");
 const CENTRAL_LOGIN_URL = import.meta.env.VITE_SK_CENTRAL_LOGIN_URL ?? "http://localhost:5475/login";
 export const CENTRAL_PROFILE_URL = import.meta.env.VITE_SK_CENTRAL_PROFILE_URL ?? CENTRAL_LOGIN_URL.replace(/\/login\/?$/, "/profile");
 
