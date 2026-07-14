@@ -14,7 +14,7 @@ import {
   listMailAccessRequests,
   startMailAccessRequest,
 } from "./api/mail-access";
-import { logoutFromCentral, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
+import { getCentralSessionState, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { FetchInboxModal } from "./components/FetchInboxModal";
 import { FloatingChatbot } from "./components/FloatingChatbot";
@@ -715,6 +715,37 @@ export default function App() {
     void bootstrap();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+    let checkInFlight = false;
+    const verifyCentralSession = async () => {
+      if (checkInFlight) return;
+      checkInFlight = true;
+      const active = await getCentralSessionState();
+      checkInFlight = false;
+      if (active === false) {
+        setAuthToken(null);
+        setAuthUser(null);
+        setAuthLoading(false);
+        redirectToCentralLogin();
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void verifyCentralSession();
+    };
+
+    void verifyCentralSession();
+    window.addEventListener("focus", verifyCentralSession);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    const interval = window.setInterval(verifyCentralSession, 30_000);
+    return () => {
+      window.removeEventListener("focus", verifyCentralSession);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(interval);
+    };
+  }, [authUser]);
+
   async function syncAuthState(token: string, user: AuthUser) {
     setAuthToken(token);
     setAuthUser(user);
@@ -1011,10 +1042,6 @@ export default function App() {
     }
   }
 
-  async function handleLogout() {
-    await logoutFromCentral();
-  }
-
   async function handleSaveProfile(payload: { coverPhotoUrl: string }) {
     const response = await updateProfile(payload);
     setAuthUser(response.data.user);
@@ -1111,7 +1138,6 @@ export default function App() {
         notifications={notifications}
         mailPilot={mailPilot}
         onSaveProfile={handleSaveProfile}
-        onLogout={() => void handleLogout()}
       />
     ) : visibleRoute === "mail-access" ? (
       <MailAccessRequestsPage canView={isMailAccessAdmin} />
@@ -1149,7 +1175,6 @@ export default function App() {
       includeAllAccounts={includeAllAccounts}
       onAccountScopeChange={handleAccountScopeChange}
       pendingMailAccessCount={pendingApprovalCount}
-      onLogout={() => void handleLogout()}
     >
       {mailPilot.error ? <div className="error-banner">{mailPilot.error}</div> : null}
       {syncOverlayVisible ? (

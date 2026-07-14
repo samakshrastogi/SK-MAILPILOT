@@ -45,10 +45,19 @@ export async function requestCentralAppToken() {
   return appTokenPromise;
 }
 
-export async function logoutFromCentral() {
-  await fetch(`${CENTRAL_AUTH_BASE_URL}/auth/global-logout`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" } }).catch(() => undefined);
-  authToken = null;
-  redirectToCentralLogin();
+export async function getCentralSessionState(): Promise<boolean | null> {
+  try {
+    const response = await fetch(`${CENTRAL_AUTH_BASE_URL}/auth/me`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { data?: { authenticated?: boolean } };
+    return payload.data?.authenticated === true;
+  } catch {
+    return null;
+  }
 }
 
 export function buildQuery(params: Record<string, string | number | boolean | null | undefined>) {

@@ -9,7 +9,6 @@ import {
   FiClipboard,
   FiCheckCircle,
   FiExternalLink,
-  FiLogOut,
   FiUser,
   FiShield,
   FiUsers,
@@ -61,7 +60,6 @@ type AppShellProps = {
   includeAllAccounts: boolean;
   onAccountScopeChange: (value: string) => void;
   pendingMailAccessCount?: number;
-  onLogout: () => void;
   children: ReactNode;
 };
 
@@ -83,7 +81,6 @@ export function AppShell({
   includeAllAccounts,
   onAccountScopeChange,
   pendingMailAccessCount = 0,
-  onLogout,
   children,
 }: AppShellProps) {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
@@ -310,9 +307,6 @@ export function AppShell({
                         <a href={CENTRAL_PROFILE_URL} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                           <FiExternalLink className="text-sky-600" /> Manage your SK account
                         </a>
-                        <button type="button" onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50">
-                          <FiLogOut /> Logout
-                        </button>
                       </div>
                     </div>
                   ) : null}
