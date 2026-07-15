@@ -1,4 +1,4 @@
-# MailPilot Project Guide
+# SK MailPilot
 
 MailPilot is an inbox operations workspace for syncing Gmail messages, reviewing priority, drafting replies, scheduling outbound email, managing mailbox access, and auditing team activity.
 
@@ -298,3 +298,25 @@ Use this routine when managing active mailboxes:
 - Use sender insights to reduce repeated manual work.
 - Use sync history and audit center when numbers, approvals, or sent activity need explanation.
 
+
+## Product overview
+
+| Area | Details |
+| --- | --- |
+| Purpose | Turn approved Gmail mailboxes into a focused inbox operations workspace. |
+| Primary users | Individuals and teams reviewing, replying to, and scheduling email. |
+| Central integration | SK Auth login, global logout, central profile/avatar, and protected operational analytics. |
+| Admin signals | Mailbox adoption, processed mail, reply workload, schedules, categories, and sync health. |
+
+## SK Central handoff
+
+```mermaid
+flowchart LR
+  User --> Central[SK Central / SK Auth]
+  Central -->|short-lived app token| MailPilot[SK MailPilot]
+  MailPilot -->|validate token| CentralAPI[Central API]
+  MailPilot --> Workspace[Inbox workspace]
+  Metrics[Aggregate mail operations] -->|service token| CentralAnalytics[SK Central analytics]
+```
+
+The MailPilot backend must use the same `SK_CENTRAL_SERVICE_TOKEN` value configured as `SK_QUIZ_SERVICE_TOKEN` in SK Central.
