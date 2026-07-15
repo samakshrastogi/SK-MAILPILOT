@@ -290,7 +290,7 @@ export function AppShell({
                       <img src={user.avatarUrl} onError={() => setAvatarBroken(true)} className="h-full w-full object-cover" alt={user.name} />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-xs font-semibold text-white">
-                        {user.avatarInitials || getUserInitials(user.name)}
+                        {getUserInitials(user.name)}
                       </div>
                     )}
                   </button>

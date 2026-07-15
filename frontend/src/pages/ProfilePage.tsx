@@ -155,7 +155,7 @@ export function ProfilePage({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-white">
-                    {user.avatarInitials || getInitials(name)}
+                    {getInitials(name)}
                   </div>
                 )}
               </div>

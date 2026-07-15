@@ -14,7 +14,7 @@ import {
   listMailAccessRequests,
   startMailAccessRequest,
 } from "./api/mail-access";
-import { getCentralSessionState, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
+import { getCentralProfile, getCentralSessionState, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { FetchInboxModal } from "./components/FetchInboxModal";
 import { FloatingChatbot } from "./components/FloatingChatbot";
@@ -702,7 +702,13 @@ export default function App() {
       try {
         const me = await getCurrentUser();
         if (cancelled) return;
-        await syncAuthState(token, me.data.user);
+        const centralProfile = getCentralProfile();
+        await syncAuthState(token, {
+          ...me.data.user,
+          name: centralProfile?.name || me.data.user.name,
+          avatarUrl: centralProfile?.avatarUrl || me.data.user.avatarUrl,
+          avatarInitials: centralProfile?.avatarInitials || me.data.user.avatarInitials
+        });
         setAuthError(null);
       } catch (error) {
         if (!cancelled) {

@@ -10,7 +10,8 @@ export const CENTRAL_PROFILE_URL = import.meta.env.VITE_SK_CENTRAL_PROFILE_URL ?
 
 type ApiRequestErrorPayload = { message: string; status: number };
 type ApiErrorPayload = { success?: boolean; error?: string; details?: { fieldErrors?: Record<string, string[] | undefined>; formErrors?: string[] } };
-type CentralAppTokenResponse = { data: { token: string } };
+export type CentralProfile = { name: string; email: string; avatarUrl?: string; avatarInitials?: string };
+type CentralAppTokenResponse = { data: { token: string; user?: CentralProfile } };
 export type ApiEnvelope<T> = { success: boolean; data: T; error?: string };
 
 export class ApiRequestError extends Error {
@@ -24,8 +25,10 @@ export class ApiRequestError extends Error {
 
 let authToken: string | null = null;
 let appTokenPromise: Promise<string> | null = null;
+let centralProfile: CentralProfile | null = null;
 export function getAuthToken() { return authToken; }
 export function getApiBaseUrl() { return API_BASE_URL; }
+export function getCentralProfile() { return centralProfile; }
 export function setAuthToken(token: string | null) { authToken = token; }
 
 export function redirectToCentralLogin() {
@@ -39,6 +42,7 @@ export async function requestCentralAppToken() {
       if (!response.ok) throw new ApiRequestError({ message: "SK Central login required", status: response.status });
       const payload = (await response.json()) as CentralAppTokenResponse;
       authToken = payload.data.token;
+      centralProfile = payload.data.user ?? null;
       return payload.data.token;
     })
     .finally(() => { appTokenPromise = null; });
