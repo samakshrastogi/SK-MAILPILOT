@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { AuditEventModel } from "../models/audit-event.model";
 import { GmailAccountModel } from "../models/gmail-account.model";
+import { EmailModel } from "../models/email.model";
 import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { ScheduledEmailModel } from "../models/scheduled-email.model";
 import { SyncHistoryModel } from "../models/sync-history.model";
@@ -15,6 +16,34 @@ const auditQuerySchema = z.object({
 
 function isAdminOrReviewer(role?: string) {
   return role === "admin" || role === "reviewer";
+}
+
+export async function getCentralInsights(_req: AuthenticatedRequest, res: Response) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduledByStatus, categories] = await Promise.all([
+    UserModel.countDocuments({}),
+    GmailAccountModel.countDocuments({ status: "active" }),
+    EmailModel.countDocuments({ status: "active" }),
+    EmailModel.countDocuments({ status: "active", createdAt: { $gte: sevenDaysAgo } }),
+    EmailModel.countDocuments({ status: "active", needsReply: true, replyStatus: { $ne: "sent" } }),
+    EmailModel.countDocuments({ status: "active", replyRiskStatus: "overdue" }),
+    EmailModel.countDocuments({ status: "active", priority: "high" }),
+    SyncHistoryModel.countDocuments({}),
+    SyncHistoryModel.countDocuments({ status: "failed" }),
+    MailAccessRequestModel.countDocuments({ status: "pending" }),
+    ScheduledEmailModel.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+    EmailModel.aggregate([{ $match: { status: "active" } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }])
+  ]);
+  const schedule = Object.fromEntries((scheduledByStatus as Array<{ _id: string; count: number }>).map((row) => [row._id, row.count]));
+  res.status(200).json({
+    success: true,
+    data: {
+      generatedAt: new Date().toISOString(),
+      summary: { users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduled: schedule.scheduled ?? 0, drafts: schedule.draft ?? 0, sent: schedule.sent ?? 0, failed: schedule.failed ?? 0 },
+      categoryDistribution: (categories as Array<{ _id: string; count: number }>).map((row) => ({ label: row._id || "other", value: row.count })),
+      health: { syncSuccessRate: syncRuns > 0 ? Math.round(((syncRuns - syncFailures) / syncRuns) * 100) : 100, sendSuccessRate: ((schedule.sent ?? 0) + (schedule.failed ?? 0)) > 0 ? Math.round(((schedule.sent ?? 0) / ((schedule.sent ?? 0) + (schedule.failed ?? 0))) * 100) : 100 }
+    }
+  });
 }
 
 export async function getAuditCenter(req: AuthenticatedRequest, res: Response) {

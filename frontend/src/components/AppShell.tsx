@@ -87,6 +87,16 @@ export function AppShell({
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [developerOpen, setDeveloperOpen] = useState(false);
+  const developerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (developerOpen && !developerRef.current?.contains(event.target as Node)) setDeveloperOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [developerOpen]);
 
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const accountScopeRef = useRef<HTMLDivElement | null>(null);
@@ -411,16 +421,19 @@ export function AppShell({
         </section>
       </div>
 
-      <a
-        className="fixed bottom-24 right-4 z-50 flex items-center gap-3 rounded-[22px] border border-white/80 bg-white px-5 py-4 text-sm font-bold text-slate-950 shadow-[0_20px_55px_-22px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:shadow-xl"
-        href="https://www.linkedin.com/in/samaksh-rastogi-9638b9254/"
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Developed by Samaksh Rastogi on LinkedIn"
-      >
-        <FiCheckCircle className="text-xl text-cyan-600" />
-        <span>Developed by Samaksh Rastogi</span>
-      </a>
+      <div ref={developerRef} className="group fixed bottom-24 right-4 z-50 flex items-center">
+        <a
+          className={`${developerOpen ? "flex" : "hidden group-hover:flex group-focus-within:flex"} items-center whitespace-nowrap rounded-l-[22px] border border-r-0 border-white/80 bg-white px-4 py-3 text-sm font-bold text-slate-950 shadow-[0_20px_55px_-22px_rgba(15,23,42,0.45)]`}
+          href="https://www.linkedin.com/in/samaksh-rastogi-9638b9254/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Developed by <span className="ml-1 text-emerald-600 underline decoration-2 underline-offset-4">Samaksh Rastogi</span>
+        </a>
+        <button type="button" onClick={() => setDeveloperOpen((current) => !current)} className={`${developerOpen ? "rounded-r-[22px]" : "rounded-[22px] group-hover:rounded-l-none group-focus-within:rounded-l-none"} grid h-12 w-12 place-items-center bg-white text-cyan-600 shadow-[0_20px_55px_-22px_rgba(15,23,42,0.45)]`} aria-label={developerOpen ? "Hide developer credit" : "Show developer credit"} aria-expanded={developerOpen}>
+          <FiCheckCircle className="text-xl" />
+        </button>
+      </div>
       {/* MAIN */}
       <main className={`mx-auto max-w-7xl ${route === "chatbot" ? "px-2 py-2 sm:px-4 sm:py-6" : "px-4 py-6"}`}>
         <div className={route === "chatbot" ? "space-y-0" : "space-y-6"}>{children}</div>
