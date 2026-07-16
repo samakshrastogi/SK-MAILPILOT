@@ -40,7 +40,3 @@ export function getApiBaseUrl() {
 export function getWebBaseUrl() {
   return getRequiredEnv("WEB_BASE_URL").replace(/\/$/, "");
 }
-
-export function getMailAccessAdminEmail() {
-  return getRequiredEnv("MAIL_ACCESS_ADMIN_EMAIL").toLowerCase();
-}

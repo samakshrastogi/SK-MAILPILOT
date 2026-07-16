@@ -37,7 +37,6 @@ const navItemsConfig: Array<{
   { route: "dashboard", label: "Overview", icon: FiGrid },
   { route: "emails", label: "Emails", icon: FiMail },
   { route: "compose", label: "Compose", icon: FiSend },
-  { route: "mail-access", label: "Request", icon: FiShield, accessRequired: "requests" },
   { route: "audit-center", label: "Audit", icon: FiClipboard, accessRequired: "audit" },
   { route: "team", label: "Team", icon: FiUsers, accessRequired: "team" },
 ];
@@ -49,6 +48,7 @@ type AppShellProps = {
   refreshing: boolean;
   user: AuthUser;
   canViewMailAccessRequests?: boolean;
+  onOpenApprovalRequests?: () => void;
   canViewAuditCenter?: boolean;
   canManageTeam?: boolean;
   notifications: AppNotification[];
@@ -70,6 +70,7 @@ export function AppShell({
   refreshing,
   user,
   canViewMailAccessRequests = false,
+  onOpenApprovalRequests,
   canViewAuditCenter = false,
   canManageTeam = false,
   notifications,
@@ -190,6 +191,14 @@ export function AppShell({
               </div>
               {/* RIGHT: ACTIONS */}
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+
+                {canViewMailAccessRequests && onOpenApprovalRequests ? (
+                  <button onClick={onOpenApprovalRequests} className={actionBtn} title="Approval requests">
+                    <FiShield />
+                    <span className="hidden sm:inline">Approval requests</span>
+                    {pendingMailAccessCount > 0 ? <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingMailAccessCount}</span> : null}
+                  </button>
+                ) : null}
 
                 <button onClick={onRefresh} className={primaryBtn} title="Sync inbox">
                   <FiRefreshCcw className={refreshing ? "animate-spin" : ""} />

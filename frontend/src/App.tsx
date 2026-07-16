@@ -35,10 +35,8 @@ import { TeamPage } from "./pages/TeamPage";
 import { TutorialPage } from "./pages/TutorialPage";
 import type { AuthUser, GmailAccount, MailAccessRequest } from "./types/auth";
 import type { AppNotification, ChatResponse, SyncProgress } from "./types/email";
-import { getRequiredViteEnv } from "./config/env";
 import "./mailpilot.css";
 
-const MAIL_ACCESS_ADMIN_EMAIL = getRequiredViteEnv("VITE_MAIL_ACCESS_ADMIN_EMAIL");
 const MAIL_ACCESS_SYNC_ERROR = "Connect a Gmail account before syncing inbox emails";
 const COMPOSE_PREFILL_STORAGE_KEY = "sk-mailpilot-compose-prefill";
 
@@ -270,6 +268,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [, setConnectingAccount] = useState(false);
   const [mailAccessModalOpen, setMailAccessModalOpen] = useState(false);
+  const [approvalRequestsModalOpen, setApprovalRequestsModalOpen] = useState(false);
   const [requestingMailAccess, setRequestingMailAccess] = useState(false);
   const [mailAccessRequestedEmail, setMailAccessRequestedEmail] = useState("");
   const [mailAccessRequestMessage, setMailAccessRequestMessage] = useState<string | null>(null);
@@ -285,11 +284,11 @@ export default function App() {
   const [partialSyncRefreshDone, setPartialSyncRefreshDone] = useState(false);
   const syncCompletionHideTimerRef = useRef<number | null>(null);
   const syncOverviewNavigationRef = useRef<string | null>(null);
-  const isMailAccessAdmin = authUser?.email.trim().toLowerCase() === MAIL_ACCESS_ADMIN_EMAIL;
+  const isMailAccessAdmin = authUser?.role === "admin";
   const canViewAuditCenter = authUser?.role === "admin" || authUser?.role === "reviewer";
   const canManageTeam = authUser?.role === "admin";
   const visibleRoute =
-    (route === "mail-access" && !isMailAccessAdmin) ||
+    route === "mail-access" ||
     (route === "audit-center" && !canViewAuditCenter) ||
     (route === "team" && !canManageTeam)
       ? "dashboard"
@@ -776,7 +775,7 @@ export default function App() {
     } catch {
       setMailAccessRequests([]);
     }
-    if (user.email.trim().toLowerCase() === MAIL_ACCESS_ADMIN_EMAIL) {
+    if (user.role === "admin") {
       try {
         const adminResponse = await listMailAccessRequests();
         setAdminPendingMailAccessCount(
@@ -1081,6 +1080,11 @@ export default function App() {
       setMailAccessModalOpen(false);
     }
 
+    if (targetRoute === "mail-access" && isMailAccessAdmin) {
+      setApprovalRequestsModalOpen(true);
+      return;
+    }
+
     if (targetRoute === "mail-access" && !isMailAccessAdmin) {
       const requestedEmail =
         typeof notification.metadata?.requestedAccountEmail === "string"
@@ -1145,8 +1149,6 @@ export default function App() {
         mailPilot={mailPilot}
         onSaveProfile={handleSaveProfile}
       />
-    ) : visibleRoute === "mail-access" ? (
-      <MailAccessRequestsPage canView={isMailAccessAdmin} />
     ) : visibleRoute === "audit-center" ? (
       <AuditCenterPage canView={canViewAuditCenter} />
     ) : visibleRoute === "team" ? (
@@ -1170,6 +1172,7 @@ export default function App() {
       refreshing={mailPilot.refreshing}
       user={authUser}
       canViewMailAccessRequests={isMailAccessAdmin}
+      onOpenApprovalRequests={isMailAccessAdmin ? () => setApprovalRequestsModalOpen(true) : undefined}
       canViewAuditCenter={canViewAuditCenter}
       canManageTeam={canManageTeam}
       notifications={notifications}
@@ -1208,6 +1211,17 @@ export default function App() {
         </div>
       ) : null}
       {page}
+      {approvalRequestsModalOpen && isMailAccessAdmin ? (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6" onClick={() => setApprovalRequestsModalOpen(false)}>
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[28px] bg-slate-50 p-3 shadow-2xl sm:p-5" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div><p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-600">Admin</p><h2 className="text-xl font-semibold text-slate-950">Approval requests</h2></div>
+              <button type="button" onClick={() => setApprovalRequestsModalOpen(false)} className="rounded-xl bg-white p-2.5 text-slate-600 shadow-sm" aria-label="Close approval requests"><FiX /></button>
+            </div>
+            <MailAccessRequestsPage canView />
+          </div>
+        </div>
+      ) : null}
       <FirstSyncPrompt
         open={firstSyncPromptOpen && !mailAccessModalOpen && !fetchModalOpen}
         userEmail={authUser.email}
@@ -1254,7 +1268,7 @@ export default function App() {
         onRequestedEmailChange={handleRequestedEmailChange}
         onStartRequest={handleStartMailAccessRequest}
         onConnectApprovedMail={handleConnectAccount}
-        onOpenAdminRequests={isMailAccessAdmin ? () => navigate("mail-access") : undefined}
+        onOpenAdminRequests={isMailAccessAdmin ? () => setApprovalRequestsModalOpen(true) : undefined}
       />
     </AppShell>
   );

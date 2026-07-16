@@ -222,7 +222,7 @@ export function MailAccessModal({
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:rounded-2xl sm:px-4 sm:py-3"
               >
                 <FiUserPlus />
-                Open requests page
+                Approval requests
               </button>
             ) : null}
 

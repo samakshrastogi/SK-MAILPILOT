@@ -10,7 +10,7 @@ import { sendSystemEmail } from "../services/system-email.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { createNotification } from "../services/notification.service";
 import { recordAuditEvent } from "../services/audit.service";
-import { getMailAccessAdminEmail, getWebBaseUrl } from "../config/env";
+import { getWebBaseUrl } from "../config/env";
 import { signState, verifyState } from "../utils/auth";
 
 const requiredGmailScopes = [
@@ -134,7 +134,7 @@ export async function startGoogleAccountConnect(req: AuthenticatedRequest, res: 
     }
 
     const requestedAccountEmail = query.requestedAccountEmail?.toLowerCase();
-    const isAdmin = user.email.trim().toLowerCase() === getMailAccessAdminEmail();
+    const isAdmin = user.role === "admin";
 
     if (requestedAccountEmail && !isAdmin) {
       const approvedRequest = await MailAccessRequestModel.findOne({
@@ -206,9 +206,8 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
       code,
     });
     const callbackScope = z.string().trim().optional().parse(req.query.scope);
-    const user = await UserModel.findById(state.userId).select({ name: 1, email: 1, primaryAccountId: 1 }).lean();
-    const isAdmin =
-      user?.email?.trim().toLowerCase() === getMailAccessAdminEmail();
+    const user = await UserModel.findById(state.userId).select({ name: 1, email: 1, role: 1, primaryAccountId: 1 }).lean();
+    const isAdmin = user?.role === "admin";
     const requestedAccountEmail = state.requestedAccountEmail?.trim().toLowerCase();
 
     if (requestedAccountEmail && result.profile.email !== requestedAccountEmail) {
@@ -278,12 +277,16 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
             String(requestDoc._id)
           );
 
-          await sendSystemEmail({
-            to: getMailAccessAdminEmail(),
-            subject: `Mail access request pending approval: ${requestedAccountEmail}`,
-            body: pendingApprovalEmail.plainText,
-            htmlBody: pendingApprovalEmail.html,
-          });
+          const adminUsers = await UserModel.find({ role: "admin" }).select({ email: 1 }).lean();
+          const recipients = adminUsers.map((adminUser) => adminUser.email).filter(Boolean);
+          if (recipients.length) {
+            await sendSystemEmail({
+              to: recipients,
+              subject: `Mail access request pending approval: ${requestedAccountEmail}`,
+              body: pendingApprovalEmail.plainText,
+              htmlBody: pendingApprovalEmail.html,
+            });
+          }
 
           requestDoc.notificationSentAt = new Date();
           await requestDoc.save();
@@ -316,26 +319,19 @@ export async function completeGoogleAccountConnect(req: AuthenticatedRequest, re
           },
         });
 
-        const adminUser = await UserModel.findOne({
-          email: getMailAccessAdminEmail(),
-        })
-          .select({ _id: 1 })
-          .lean();
-
-        if (adminUser?._id) {
-          await createNotification({
-            userId: String(adminUser._id),
-            type: "warning",
-            title: "New mailbox approval request",
-            message: `${requestedAccountEmail} was verified and is waiting for approval.`,
-            metadata: {
-              kind: "mail-access-admin-review",
-              requestedAccountEmail,
-              requestId: String(requestDoc._id),
-              requesterEmail: user?.email ?? result.profile.email,
-            },
-          });
-        }
+        const adminUsers = await UserModel.find({ role: "admin" }).select({ _id: 1 }).lean();
+        await Promise.all(adminUsers.map((adminUser) => createNotification({
+          userId: String(adminUser._id),
+          type: "warning",
+          title: "New mailbox approval request",
+          message: `${requestedAccountEmail} was verified and is waiting for approval.`,
+          metadata: {
+            kind: "mail-access-admin-review",
+            requestedAccountEmail,
+            requestId: String(requestDoc._id),
+            requesterEmail: user?.email ?? result.profile.email,
+          },
+        })));
       } else {
         await createNotification({
           userId: state.userId,

@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
-import { getMailAccessAdminEmail } from "../config/env";
 import { UserModel } from "../models/user.model";
 import { logger } from "../utils/logger";
 
@@ -100,7 +99,7 @@ async function verifyCentralToken(token: string) {
 async function syncCentralUser(payload: CentralTokenPayload) {
   const email = payload.email.trim().toLowerCase();
   let user = await UserModel.findOne({ $or: [{ skCentralUserId: payload.sub }, { email }] });
-  const isAdmin = payload.role === "admin" || email === getMailAccessAdminEmail();
+  const isAdmin = payload.role === "admin";
   if (!user) {
     user = await UserModel.create({
       skCentralUserId: payload.sub,

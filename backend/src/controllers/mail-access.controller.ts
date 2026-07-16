@@ -10,10 +10,8 @@ import { sendSystemEmail } from "../services/system-email.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { createNotification } from "../services/notification.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
-import { getMailAccessAdminEmail } from "../config/env";
 import { signState } from "../utils/auth";
 
-const adminEmail = getMailAccessAdminEmail();
 const requiredGmailScopes = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.modify",
@@ -35,8 +33,8 @@ const requestStartSchema = z.object({
   requestedAccountEmail: z.string().trim().email(),
 });
 
-function requireAdmin(userEmail: string) {
-  return userEmail.trim().toLowerCase() === adminEmail;
+function requireAdmin(user: { role?: string | null }) {
+  return user.role === "admin";
 }
 
 function buildApprovalEmail(name: string, requestedAccountEmail: string) {
@@ -83,7 +81,7 @@ function buildPendingApprovalEmail(requesterName: string, requesterEmail: string
     `Request id: ${requestId}`,
     "",
     "Review this request in MailPilot:",
-    buildAppUrl("/mail-access"),
+    buildAppUrl("/"),
   ].join("\n");
 
   const html = buildBrandedEmail({
@@ -100,7 +98,7 @@ function buildPendingApprovalEmail(requesterName: string, requesterEmail: string
     ],
     action: {
       label: "Review request",
-      url: buildAppUrl("/mail-access"),
+      url: buildAppUrl("/"),
     },
     footerNote: "Approve only if this user should be allowed to connect and manage the requested mailbox in SK MailPilot.",
   });
@@ -121,12 +119,16 @@ async function sendPendingRequestAlerts(options: {
     options.requestId
   );
 
-  await sendSystemEmail({
-    to: getMailAccessAdminEmail(),
-    subject: `Mail access request pending approval: ${options.requestedAccountEmail}`,
-    body: pendingApprovalEmail.plainText,
-    htmlBody: pendingApprovalEmail.html,
-  });
+  const adminUsers = await UserModel.find({ role: "admin" }).select({ email: 1 }).lean();
+  const recipients = adminUsers.map((adminUser) => adminUser.email).filter(Boolean);
+  if (recipients.length) {
+    await sendSystemEmail({
+      to: recipients,
+      subject: `Mail access request pending approval: ${options.requestedAccountEmail}`,
+      body: pendingApprovalEmail.plainText,
+      htmlBody: pendingApprovalEmail.html,
+    });
+  }
 }
 
 async function getCurrentUser(req: AuthenticatedRequest) {
@@ -261,26 +263,19 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
         },
       });
 
-      const adminUser = await UserModel.findOne({
-        email: getMailAccessAdminEmail(),
-      })
-        .select({ _id: 1 })
-        .lean();
-
-      if (adminUser?._id) {
-        await createNotification({
-          userId: String(adminUser._id),
-          type: "warning",
-          title: "New mailbox approval request",
-          message: `${requestedAccountEmail} is waiting for approval.`,
-          metadata: {
-            kind: "mail-access-admin-review",
-            requestedAccountEmail,
-            requestId: String(requestDoc._id),
-            requesterEmail: user.email,
-          },
-        });
-      }
+      const adminUsers = await UserModel.find({ role: "admin" }).select({ _id: 1 }).lean();
+      await Promise.all(adminUsers.map((adminUser) => createNotification({
+        userId: String(adminUser._id),
+        type: "warning",
+        title: "New mailbox approval request",
+        message: `${requestedAccountEmail} is waiting for approval.`,
+        metadata: {
+          kind: "mail-access-admin-review",
+          requestedAccountEmail,
+          requestId: String(requestDoc._id),
+          requesterEmail: user.email,
+        },
+      })));
 
       res.status(200).json({
         success: true,
@@ -350,7 +345,7 @@ export async function listMailAccessRequests(req: AuthenticatedRequest, res: Res
     return;
   }
 
-  if (!requireAdmin(user.email)) {
+  if (!requireAdmin(user)) {
     res.status(403).json({
       success: false,
       error: "Admin access required",
@@ -427,7 +422,7 @@ export async function approveMailAccessRequest(req: AuthenticatedRequest, res: R
       return;
     }
 
-    if (!requireAdmin(user.email)) {
+    if (!requireAdmin(user)) {
       res.status(403).json({
         success: false,
         error: "Admin access required",
@@ -537,7 +532,7 @@ export async function rejectMailAccessRequest(req: AuthenticatedRequest, res: Re
       return;
     }
 
-    if (!requireAdmin(user.email)) {
+    if (!requireAdmin(user)) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
