@@ -5,7 +5,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { GmailAccountModel } from "../models/gmail-account.model";
 import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { UserModel } from "../models/user.model";
-import { getGoogleAuthUrl } from "../services/google-oauth.service";
+import { assertGoogleMailboxOAuthConfigured, getGoogleAuthUrl, GoogleOAuthConfigurationError } from "../services/google-oauth.service";
 import { sendSystemEmail } from "../services/system-email.service";
 import { recordAuditEvent } from "../services/audit.service";
 import { createNotification } from "../services/notification.service";
@@ -289,6 +289,7 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
       return;
     }
 
+    assertGoogleMailboxOAuthConfigured();
     const state = signState({
       kind: "request-mail-access",
       userId: String(user._id),
@@ -317,6 +318,15 @@ export async function startMailAccessRequest(req: AuthenticatedRequest, res: Res
         success: false,
         error: "Invalid mail access request",
         details: error.flatten(),
+      });
+      return;
+    }
+
+    if (error instanceof GoogleOAuthConfigurationError) {
+      res.status(503).json({
+        success: false,
+        error: error.message,
+        code: error.code,
       });
       return;
     }

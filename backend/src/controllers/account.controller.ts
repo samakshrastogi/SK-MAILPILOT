@@ -5,7 +5,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { GmailAccountModel } from "../models/gmail-account.model";
 import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { UserModel } from "../models/user.model";
-import { exchangeGoogleCode, getGoogleAuthUrl } from "../services/google-oauth.service";
+import { assertGoogleMailboxOAuthConfigured, exchangeGoogleCode, getGoogleAuthUrl, GoogleOAuthConfigurationError } from "../services/google-oauth.service";
 import { sendSystemEmail } from "../services/system-email.service";
 import { buildAppUrl, buildBrandedEmail } from "../services/email-template.service";
 import { createNotification } from "../services/notification.service";
@@ -124,7 +124,7 @@ export async function startGoogleAccountConnect(req: AuthenticatedRequest, res: 
         returnTo: z.string().trim().optional(),
       })
       .parse(req.query);
-    const user = await UserModel.findById(req.auth?.userId).select({ email: 1 }).lean();
+    const user = await UserModel.findById(req.auth?.userId).select({ email: 1, role: 1 }).lean();
     if (!req.auth?.userId || !user) {
       res.status(401).json({
         success: false,
@@ -154,6 +154,7 @@ export async function startGoogleAccountConnect(req: AuthenticatedRequest, res: 
       }
     }
 
+    assertGoogleMailboxOAuthConfigured();
     const state = signState({
       kind: "connect-account",
       userId: req.auth?.userId ?? "",
@@ -182,9 +183,11 @@ export async function startGoogleAccountConnect(req: AuthenticatedRequest, res: 
       },
     });
   } catch (error) {
-    res.status(500).json({
+    const configurationError = error instanceof GoogleOAuthConfigurationError;
+    res.status(configurationError ? 503 : 500).json({
       success: false,
       error: error instanceof Error ? error.message : "Failed to start Gmail connect",
+      ...(configurationError ? { code: error.code } : {}),
     });
   }
 }

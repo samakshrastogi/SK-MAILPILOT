@@ -48,12 +48,22 @@ process.on("uncaughtException", (error) => {
 });
 
 async function bootstrap() {
-  const [{ default: app }, { connectDB }, { startReplyScheduler }, { startComposeScheduler }] = await Promise.all([
+  const [{ default: app }, { connectDB }, { startReplyScheduler }, { startComposeScheduler }, { assertGoogleMailboxOAuthConfigured }] = await Promise.all([
     import("./app"),
     import("./config/db"),
     import("./services/reply-scheduler.service"),
     import("./services/compose-scheduler.service"),
+    import("./services/google-oauth.service"),
   ]);
+
+  try {
+    assertGoogleMailboxOAuthConfigured();
+  } catch (error) {
+    console.warn(
+      "Google mailbox OAuth is unavailable:",
+      error instanceof Error ? error.message : "Production credentials are incomplete"
+    );
+  }
 
   if (getOptionalEnv("MONGO_URI")) {
     await connectDB();

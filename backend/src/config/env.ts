@@ -1,13 +1,19 @@
+const placeholderEnvPattern = /^(?:paste(?:_|-)|replace(?:_|-)?with|change(?:_|-)?me|your(?:_|-)|<)/i;
+
+export function isPlaceholderEnvValue(value: string | undefined) {
+  const normalized = value?.trim();
+  return Boolean(normalized && placeholderEnvPattern.test(normalized));
+}
+
 export function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
 
-  if (!value) {
-    throw new Error(`${name} is required`);
+  if (!value || isPlaceholderEnvValue(value)) {
+    throw new Error(name + " is missing or still contains a placeholder value");
   }
 
   return value;
 }
-
 export function getOptionalEnv(name: string) {
   const value = process.env[name]?.trim();
   return value || undefined;

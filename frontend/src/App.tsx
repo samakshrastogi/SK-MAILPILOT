@@ -71,6 +71,16 @@ function isGoogleTestingModeError(message: string) {
   );
 }
 
+function isGoogleConfigurationError(message: string) {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized.includes("google mailbox connection is not configured") ||
+    normalized.includes("google_client_id") ||
+    normalized.includes("google_client_secret") ||
+    normalized.includes("google_redirect_uri")
+  );
+}
+
 function isScopeReconnectError(message: string) {
   const normalized = message.trim().toLowerCase();
   return (
@@ -862,7 +872,10 @@ export default function App() {
       const message =
         error instanceof Error ? error.message : "Failed to connect Gmail account";
       setAuthError(message);
-      if (isGoogleTestingModeError(message) || isScopeReconnectError(message)) {
+      if (isGoogleConfigurationError(message)) {
+        setMailAccessError(message);
+        openMailAccessModal(true);
+      } else if (isGoogleTestingModeError(message) || isScopeReconnectError(message)) {
         if (isScopeReconnectError(message)) {
           setMailAccessRequestedEmail(getReconnectTargetEmail());
           setMailAccessError(
