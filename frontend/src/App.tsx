@@ -11,7 +11,6 @@ import {
 } from "./api/notifications";
 import {
   listMyMailAccessRequests,
-  listMailAccessRequests,
   startMailAccessRequest,
 } from "./api/mail-access";
 import { getCentralProfile, getCentralSessionState, redirectToCentralLogin, requestCentralAppToken, setAuthToken } from "./api/client";
@@ -274,7 +273,6 @@ export default function App() {
   const [mailAccessRequestMessage, setMailAccessRequestMessage] = useState<string | null>(null);
   const [mailAccessError, setMailAccessError] = useState<string | null>(null);
   const [mailAccessRequests, setMailAccessRequests] = useState<MailAccessRequest[]>([]);
-  const [adminPendingMailAccessCount, setAdminPendingMailAccessCount] = useState(0);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [fetchModalOpen, setFetchModalOpen] = useState(false);
   const [firstSyncPromptOpen, setFirstSyncPromptOpen] = useState(false);
@@ -310,13 +308,7 @@ export default function App() {
     () => mailAccessRequests.filter((request) => request.status === "pending"),
     [mailAccessRequests]
   );
-  const pendingApprovalCount = useMemo(
-    () =>
-      isMailAccessAdmin
-        ? adminPendingMailAccessCount
-        : mailAccessRequests.filter((request) => request.status === "pending").length,
-    [adminPendingMailAccessCount, isMailAccessAdmin, mailAccessRequests]
-  );
+
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.id === selectedAccountId) ?? null,
     [accounts, selectedAccountId]
@@ -391,21 +383,6 @@ export default function App() {
       setMailAccessRequests([]);
     }
   }, []);
-
-  const loadAdminMailAccessSummary = useCallback(async () => {
-    if (!isMailAccessAdmin) {
-      setAdminPendingMailAccessCount(0);
-      return;
-    }
-    try {
-      const adminResponse = await listMailAccessRequests();
-      setAdminPendingMailAccessCount(
-        adminResponse.data.filter((request) => request.status === "pending").length
-      );
-    } catch {
-      setAdminPendingMailAccessCount(0);
-    }
-  }, [isMailAccessAdmin]);
 
   function getReconnectTargetEmail() {
     if (selectedAccount?.email) {
@@ -619,15 +596,13 @@ export default function App() {
   useEffect(() => {
     if (!authUser) {
       setMailAccessRequests([]);
-      setAdminPendingMailAccessCount(0);
       setNotifications([]);
       return;
     }
 
     void loadOwnMailAccessRequests();
-    void loadAdminMailAccessSummary();
     void fetchNotifications(setNotifications);
-  }, [authUser, loadAdminMailAccessSummary, loadOwnMailAccessRequests]);
+  }, [authUser, loadOwnMailAccessRequests]);
 
   useRealtimeStream(
     useCallback(
@@ -653,8 +628,7 @@ export default function App() {
           const kind = String(payload.metadata?.kind ?? "");
           if (kind.startsWith("mail-access")) {
             void loadOwnMailAccessRequests();
-            void loadAdminMailAccessSummary();
-          }
+                  }
           if (kind.startsWith("inbox-sync")) {
             void mailPilot.loadStats();
             void mailPilot.loadAnalytics();
@@ -679,7 +653,7 @@ export default function App() {
           return;
         }
       },
-      [authUser, loadAdminMailAccessSummary, loadOwnMailAccessRequests, mailPilot, route]
+      [authUser, loadOwnMailAccessRequests, mailPilot, route]
     ),
     Boolean(authUser)
   );
@@ -774,18 +748,6 @@ export default function App() {
       setMailAccessRequests(accessResponse.data);
     } catch {
       setMailAccessRequests([]);
-    }
-    if (user.role === "admin") {
-      try {
-        const adminResponse = await listMailAccessRequests();
-        setAdminPendingMailAccessCount(
-          adminResponse.data.filter((request) => request.status === "pending").length
-        );
-      } catch {
-        setAdminPendingMailAccessCount(0);
-      }
-    } else {
-      setAdminPendingMailAccessCount(0);
     }
 
     try {
@@ -1171,8 +1133,6 @@ export default function App() {
       onRefresh={() => void handleRefresh()}
       refreshing={mailPilot.refreshing}
       user={authUser}
-      canViewMailAccessRequests={isMailAccessAdmin}
-      onOpenApprovalRequests={isMailAccessAdmin ? () => setApprovalRequestsModalOpen(true) : undefined}
       canViewAuditCenter={canViewAuditCenter}
       canManageTeam={canManageTeam}
       notifications={notifications}
@@ -1183,7 +1143,6 @@ export default function App() {
       selectedAccountId={selectedAccountId}
       includeAllAccounts={includeAllAccounts}
       onAccountScopeChange={handleAccountScopeChange}
-      pendingMailAccessCount={pendingApprovalCount}
     >
       {mailPilot.error ? <div className="error-banner">{mailPilot.error}</div> : null}
       {syncOverlayVisible ? (

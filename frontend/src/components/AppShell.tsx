@@ -10,7 +10,6 @@ import {
   FiCheckCircle,
   FiExternalLink,
   FiUser,
-  FiShield,
   FiUsers,
 } from "react-icons/fi";
 import { useEffect, useRef, useState } from "react";
@@ -32,7 +31,7 @@ const navItemsConfig: Array<{
   route: AppRoute;
   label: string;
   icon: typeof FiGrid;
-  accessRequired?: "requests" | "audit" | "team";
+  accessRequired?: "audit" | "team";
 }> = [
   { route: "dashboard", label: "Overview", icon: FiGrid },
   { route: "emails", label: "Emails", icon: FiMail },
@@ -47,8 +46,6 @@ type AppShellProps = {
   onRefresh: () => void;
   refreshing: boolean;
   user: AuthUser;
-  canViewMailAccessRequests?: boolean;
-  onOpenApprovalRequests?: () => void;
   canViewAuditCenter?: boolean;
   canManageTeam?: boolean;
   notifications: AppNotification[];
@@ -59,7 +56,6 @@ type AppShellProps = {
   selectedAccountId: string | null;
   includeAllAccounts: boolean;
   onAccountScopeChange: (value: string) => void;
-  pendingMailAccessCount?: number;
   children: ReactNode;
 };
 
@@ -69,8 +65,6 @@ export function AppShell({
   onRefresh,
   refreshing,
   user,
-  canViewMailAccessRequests = false,
-  onOpenApprovalRequests,
   canViewAuditCenter = false,
   canManageTeam = false,
   notifications,
@@ -81,7 +75,6 @@ export function AppShell({
   selectedAccountId,
   includeAllAccounts,
   onAccountScopeChange,
-  pendingMailAccessCount = 0,
   children,
 }: AppShellProps) {
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
@@ -104,9 +97,7 @@ export function AppShell({
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = navItemsConfig.filter((item) => {
-    if (item.accessRequired === "requests") {
-      return canViewMailAccessRequests;
-    }
+
     if (item.accessRequired === "audit") {
       return canViewAuditCenter;
     }
@@ -192,13 +183,6 @@ export function AppShell({
               {/* RIGHT: ACTIONS */}
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
 
-                {canViewMailAccessRequests && onOpenApprovalRequests ? (
-                  <button onClick={onOpenApprovalRequests} className={actionBtn} title="Approval requests">
-                    <FiShield />
-                    <span className="hidden sm:inline">Approval requests</span>
-                    {pendingMailAccessCount > 0 ? <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">{pendingMailAccessCount}</span> : null}
-                  </button>
-                ) : null}
 
                 <button onClick={onRefresh} className={primaryBtn} title="Sync inbox">
                   <FiRefreshCcw className={refreshing ? "animate-spin" : ""} />
@@ -359,11 +343,7 @@ export function AppShell({
                   >
                     <Icon className="text-[15px] flex-shrink-0 sm:text-[16px]" />
                     <span className="hidden truncate min-[520px]:inline sm:inline">{label}</span>
-                    {r === "mail-access" && pendingMailAccessCount > 0 ? (
-                      <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                        {pendingMailAccessCount}
-                      </span>
-                    ) : null}
+
                   </button>
                 );
               })}
