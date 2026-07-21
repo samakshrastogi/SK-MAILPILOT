@@ -9,6 +9,7 @@ import { MailAccessRequestModel } from "../models/mail-access-request.model";
 import { ScheduledEmailModel } from "../models/scheduled-email.model";
 import { SyncHistoryModel } from "../models/sync-history.model";
 import { UserModel } from "../models/user.model";
+import { getSyncEmailLimit, updateSyncEmailLimit } from "../services/system-setting.service";
 
 const auditQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(40),
@@ -20,7 +21,7 @@ function isAdminOrReviewer(role?: string) {
 
 export async function getCentralInsights(_req: AuthenticatedRequest, res: Response) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduledByStatus, categories] = await Promise.all([
+  const [users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduledByStatus, categories, syncEmailLimit] = await Promise.all([
     UserModel.countDocuments({}),
     GmailAccountModel.countDocuments({ status: "active" }),
     EmailModel.countDocuments({ status: "active" }),
@@ -32,7 +33,8 @@ export async function getCentralInsights(_req: AuthenticatedRequest, res: Respon
     SyncHistoryModel.countDocuments({ status: "failed" }),
     MailAccessRequestModel.countDocuments({ status: "pending" }),
     ScheduledEmailModel.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
-    EmailModel.aggregate([{ $match: { status: "active" } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }])
+    EmailModel.aggregate([{ $match: { status: "active" } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
+    getSyncEmailLimit()
   ]);
   const schedule = Object.fromEntries((scheduledByStatus as Array<{ _id: string; count: number }>).map((row) => [row._id, row.count]));
   res.status(200).json({
@@ -41,9 +43,22 @@ export async function getCentralInsights(_req: AuthenticatedRequest, res: Respon
       generatedAt: new Date().toISOString(),
       summary: { users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduled: schedule.scheduled ?? 0, drafts: schedule.draft ?? 0, sent: schedule.sent ?? 0, failed: schedule.failed ?? 0 },
       categoryDistribution: (categories as Array<{ _id: string; count: number }>).map((row) => ({ label: row._id || "other", value: row.count })),
-      health: { syncSuccessRate: syncRuns > 0 ? Math.round(((syncRuns - syncFailures) / syncRuns) * 100) : 100, sendSuccessRate: ((schedule.sent ?? 0) + (schedule.failed ?? 0)) > 0 ? Math.round(((schedule.sent ?? 0) / ((schedule.sent ?? 0) + (schedule.failed ?? 0))) * 100) : 100 }
+      health: { syncSuccessRate: syncRuns > 0 ? Math.round(((syncRuns - syncFailures) / syncRuns) * 100) : 100, sendSuccessRate: ((schedule.sent ?? 0) + (schedule.failed ?? 0)) > 0 ? Math.round(((schedule.sent ?? 0) / ((schedule.sent ?? 0) + (schedule.failed ?? 0))) * 100) : 100 },
+      settings: { syncEmailLimit }
     }
   });
+}
+
+const centralSettingsSchema = z.object({ syncEmailLimit: z.coerce.number().int().min(1).max(100) });
+
+export async function getCentralSettings(_req: AuthenticatedRequest, res: Response) {
+  res.status(200).json({ success: true, data: { syncEmailLimit: await getSyncEmailLimit() } });
+}
+
+export async function updateCentralSettings(req: AuthenticatedRequest, res: Response) {
+  const payload = centralSettingsSchema.parse(req.body ?? {});
+  const data = await updateSyncEmailLimit(payload.syncEmailLimit, req.header("x-sk-central-user-email"));
+  res.status(200).json({ success: true, data });
 }
 
 export async function getAuditCenter(req: AuthenticatedRequest, res: Response) {

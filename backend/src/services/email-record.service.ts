@@ -15,6 +15,8 @@ export type PersistedEmailPayload = {
   userId: string;
   accountId?: string | null;
   sender: string;
+  recipients?: string[];
+  mailboxType?: "inbox" | "sent";
   subject: string;
   content: string;
   htmlContent?: string | null;
@@ -106,6 +108,8 @@ export async function createOrUpdateEmailRecord(payload: PersistedEmailPayload) 
     }
 
     existingByMessageId.sender = normalizedSender;
+    existingByMessageId.recipients = payload.recipients ?? [];
+    existingByMessageId.mailboxType = payload.mailboxType ?? "inbox";
     existingByMessageId.userId = payload.userId;
     existingByMessageId.accountId = payload.accountId ?? null;
     existingByMessageId.subject = normalizedSubject;
@@ -151,6 +155,8 @@ export async function createOrUpdateEmailRecord(payload: PersistedEmailPayload) 
     accountId: payload.accountId ?? null,
     numericId,
     sender: normalizedSender,
+      recipients: payload.recipients ?? [],
+      mailboxType: payload.mailboxType ?? "inbox",
     subject: normalizedSubject,
     content: trimmedContent,
     htmlContent: payload.htmlContent ?? null,

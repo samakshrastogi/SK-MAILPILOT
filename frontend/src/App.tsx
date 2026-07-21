@@ -1086,11 +1086,11 @@ export default function App() {
   }
 
   if (authLoading && !authUser) {
-    return <div className="min-h-screen bg-slate-950 text-white" />;
+    return <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-900"><div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm"><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-600 font-bold text-white">SK</span><div><strong className="block text-sm">SK MailPilot</strong><span className="text-xs text-slate-500">Opening your workspace…</span></div></div></div>;
   }
 
   if (!authUser) {
-    return <div className="grid min-h-screen place-items-center bg-slate-950 p-6 text-center text-sm font-semibold text-white">{authError || "Redirecting to SK Central..."}</div>;
+    return <div className="grid min-h-screen place-items-center bg-slate-50 p-6 text-center text-sm font-semibold text-slate-700">{authError || "Redirecting to SK Central..."}</div>;
   }
 
   const page =

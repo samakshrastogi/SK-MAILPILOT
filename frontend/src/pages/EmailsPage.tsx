@@ -192,7 +192,7 @@ export function EmailsPage({
   ) {
     const updatedEmail = await mailPilot.sendReplyNow(id, reply, style, attachments);
     if (updatedEmail && selectedEmail?._id === updatedEmail._id) {
-      setSelectedEmail(updatedEmail);
+      setSelectedEmail(null);
     }
     return updatedEmail;
   }
@@ -200,7 +200,7 @@ export function EmailsPage({
   async function handleScheduleReply(id: number, payload: Parameters<typeof mailPilot.scheduleReply>[1]) {
     const updatedEmail = await mailPilot.scheduleReply(id, payload);
     if (updatedEmail && selectedEmail?._id === updatedEmail._id) {
-      setSelectedEmail(updatedEmail);
+      setSelectedEmail(null);
     }
     return updatedEmail;
   }
@@ -239,7 +239,9 @@ export function EmailsPage({
               <p className="mt-1 truncate text-xs text-slate-500">
                 {hasActiveFilters
                   ? "Filters active"
-                  : "Viewing all messages."}
+                  : mailPilot.mailboxType === "sent"
+                    ? "Viewing messages from Gmail Sent."
+                    : "Viewing inbox messages."}
               </p>
               <div className="mt-2">
                 <span
@@ -258,6 +260,8 @@ export function EmailsPage({
 
             {/* Right Controls */}
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+
+              <button type="button" onClick={() => { const nextMailbox = mailPilot.mailboxType === "sent" ? "inbox" : "sent"; mailPilot.setPage(1); mailPilot.setMailboxType(nextMailbox); void mailPilot.refreshAll({ syncInbox: true, mailboxType: nextMailbox }); }} className={`h-9 rounded-lg border px-3 text-xs font-semibold ${mailPilot.mailboxType === "sent" ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 bg-white text-slate-700"}`}>{mailPilot.mailboxType === "sent" ? "Inbox" : "Sent mails"}</button>
 
               {/* SEARCH */}
               <div
@@ -365,13 +369,9 @@ export function EmailsPage({
 
         {/* FILTER PANEL */}
         {showFilters && (
-          <div className="space-y-3 border-t border-sky-100/80 px-3 py-3 sm:space-y-4 sm:px-6 sm:py-5">
-            <div className="rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2 text-xs leading-5 text-sky-800 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-              Filters affect only the current view. Bulk actions use the visible selection.
-            </div>
-
-            {/* FILTERS */}
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="border-t border-sky-100/80 px-3 py-2 sm:px-4 sm:py-2.5">
+                        {/* FILTERS */}
+            <div className="grid min-w-0 grid-cols-2 gap-2 md:flex md:flex-wrap md:items-end">
 
               {/* Compact Select */}
               {[

@@ -736,54 +736,26 @@ async function summarizeInbox(scope: InboxChatScope): Promise<ToolResult> {
 }
 
 async function answerFromInbox(message: string, scope: InboxChatScope): Promise<ToolResult> {
-  const query = buildScopedQuery(scope, {
-    $or: [
-      { subject: { $regex: message, $options: "i" } },
-      { content: { $regex: message, $options: "i" } },
-      { summary: { $regex: message, $options: "i" } },
-      { sender: { $regex: message, $options: "i" } },
-    ],
+  const baseQuery = buildScopedQuery(scope);
+  const recent = await EmailModel.find(baseQuery).sort({ originalDate: -1, updatedAt: -1 }).limit(40).lean();
+  if (!recent.length) return { action: "answer", message: "Your current MailPilot inbox has no synced messages yet.", emails: [] };
+  const terms = normalizeText(message).split(/\s+/).filter((term) => term.length > 2).slice(0, 10);
+  const matches = recent.filter((email) => {
+    const haystack = normalizeText([email.subject, email.sender, email.summary, email.content].filter(Boolean).join(" "));
+    return terms.some((term) => haystack.includes(term));
   });
-  const emails = await EmailModel.find(query)
-    .sort({ updatedAt: -1 })
-    .limit(10)
-    .lean();
-
-  if (!emails.length) {
-    return {
-      action: "answer",
-      message: "I could not find matching emails for that request in the current inbox data.",
-      emails: [],
-    };
-  }
-
-  const fallback = `I found ${emails.length} matching emails. Top matches: ${emails
-    .slice(0, 5)
-    .map((email) => `#${email.numericId} ${email.subject}`)
-    .join(", ")}.`;
-  const digest = emails
-    .map(
-      (email) =>
-        `#${email.numericId} | ${email.subject} | ${email.sender} | ${getEmailCategoryLabel(email.category)} | ${email.priority}`
-    )
-    .join("\n");
-
-  const answer = await withLlmTimeout(
-    llm.invoke([
-      new SystemMessage(
-        "You answer inbox questions using only the provided email records. Be direct, short, and factual."
-      ),
-      new HumanMessage(`User request: ${message}\nMatching emails:\n${digest}`),
-    ]),
-    "chatbot.answer",
-    () => new AIMessage(fallback)
-  );
-
-  return {
-    action: "answer",
-    message: typeof answer.content === "string" ? answer.content : fallback,
-    emails,
-  };
+  const contextEmails = (matches.length ? matches : recent).slice(0, 18);
+  const digest = contextEmails.map((email) => [
+    `#${email.numericId}`, `Subject: ${email.subject}`, `From: ${email.sender}`,
+    `Category: ${getEmailCategoryLabel(email.category)}`, `Priority: ${email.priority}`,
+    `Summary: ${String(email.summary || email.content || "").replace(/\s+/g, " ").slice(0, 500)}`
+  ].join(" | ")).join("\n");
+  const fallback = `I found ${matches.length || contextEmails.length} relevant messages. Recent matches: ${contextEmails.slice(0, 5).map((email) => `#${email.numericId} ${email.subject}`).join(", ")}.`;
+  const answer = await withLlmTimeout(llm.invoke([
+    new SystemMessage("You are the SK MailPilot assistant. Answer only from the supplied mailbox records. State when the records do not contain the answer. Never invent email content. Give concise, useful next steps when appropriate."),
+    new HumanMessage(`User question: ${message}\n\nCurrent MailPilot data:\n${digest}`),
+  ]), "chatbot.answer", () => new AIMessage(fallback));
+  return { action: "answer", message: typeof answer.content === "string" ? answer.content : fallback, emails: contextEmails };
 }
 
 async function createRule(message: string, history: ChatHistoryEntry[], scope: InboxChatScope): Promise<ToolResult> {

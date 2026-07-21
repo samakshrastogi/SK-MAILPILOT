@@ -22,6 +22,8 @@ const emailSchema = new Schema(
       sparse: true,
       index: true,
     },
+    mailboxType: { type: String, enum: ["inbox", "sent"], default: "inbox", index: true },
+    recipients: { type: [String], default: [] },
     sender: {
       type: String,
       required: true,

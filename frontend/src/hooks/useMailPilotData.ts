@@ -152,6 +152,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
   const [generatingReplyId, setGeneratingReplyId] = useState<number | null>(null);
   const [bulkGeneratingFollowUps, setBulkGeneratingFollowUps] = useState(false);
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [mailboxType, setMailboxType] = useState<"inbox" | "sent">("inbox");
   const [semanticMode, setSemanticMode] = useState(false);
   const [groupByThread, setGroupByThread] = useState(false);
   const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; message: string }>>(
@@ -196,10 +197,11 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
       groupByThread,
       sortBy,
       status: "active" as const,
+      mailboxType,
       accountId: scope.accountId,
       includeAllAccounts: scope.includeAllAccounts,
     }),
-    [categoryFilter, dateFrom, dateTo, groupByThread, limit, page, pendingOnly, priorityFilter, scope, search, senderFilter, sortBy]
+    [categoryFilter, dateFrom, dateTo, groupByThread, limit, page, pendingOnly, priorityFilter, scope, search, senderFilter, sortBy, mailboxType]
   );
 
   function applyListResponse(response: { data?: ProcessedEmail[]; senders?: string[]; totalPages?: number; total?: number }) {
@@ -209,7 +211,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
     setTotalEmails(typeof response.total === "number" ? response.total : 0);
   }
 
-  async function refreshAll(options?: { syncInbox?: boolean }) {
+  async function refreshAll(options?: { syncInbox?: boolean; mailboxType?: "inbox" | "sent" }) {
     if (!enabled) {
       return;
     }
@@ -223,6 +225,7 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
           maxResults: INBOX_FETCH_LIMIT,
           accountId: scope.accountId,
           includeAllAccounts: scope.includeAllAccounts,
+          labelIds: (options?.mailboxType ?? mailboxType) === "sent" ? "SENT" : "INBOX",
         });
         setLastSyncDurationMs(response.fetchDurationMs ?? 0);
         setLastSyncAt(new Date().toISOString());
@@ -617,6 +620,8 @@ export function useMailPilotData(options: UseMailPilotDataOptions = {}) {
     setSortBy,
     pendingOnly,
     setPendingOnly,
+    mailboxType,
+    setMailboxType,
     semanticMode,
     setSemanticMode,
     groupByThread,

@@ -34,6 +34,8 @@ export type ProcessedEmail = {
   numericId: number;
   accountId: string | null;
   sender: string;
+  recipients?: string[];
+  mailboxType?: "inbox" | "sent";
   subject: string;
   content: string;
   htmlContent: string | null;
@@ -79,6 +81,7 @@ export type EmailListParams = {
   groupByThread?: boolean;
   sortBy?: "latest" | "oldest" | "priority" | "sender";
   status?: EmailStatus;
+  mailboxType?: "inbox" | "sent";
 };
 
 export type PaginatedEmailsResponse = {

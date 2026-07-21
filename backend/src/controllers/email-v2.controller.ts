@@ -38,7 +38,7 @@ import {
   startSyncProgress,
   updateSyncFetched,
 } from "../services/sync-progress.service";
-import { getRequiredNumberEnv } from "../config/env";
+import { getSyncEmailLimit } from "../services/system-setting.service";
 import { logger } from "../utils/logger";
 
 const requiredGmailReadScopes = [
@@ -87,6 +87,7 @@ const listEmailsQuerySchema = accountScopeSchema.extend({
   groupByThread: includeAllAccountsSchema,
   sortBy: z.enum(["latest", "oldest", "priority", "sender"]).default("latest"),
   status: z.enum(["active", "deleted"]).default("active"),
+  mailboxType: z.enum(["inbox", "sent"]).default("inbox"),
 });
 
 const deleteBySenderQuerySchema = accountScopeSchema.extend({
@@ -166,26 +167,11 @@ function parseLabelIds(labelIds?: string) {
     .filter(Boolean);
 }
 
-function getDefaultFetchMode() {
-  const configuredLimit = getRequiredNumberEnv("FETCH_EMAILS_LIMIT");
-
-  if (Number.isFinite(configuredLimit) && configuredLimit > 0) {
-    return Math.min(inboxFetchLimit, Math.floor(configuredLimit));
-  }
-
-  return 25;
-}
-
-function normalizeFetchLimit(maxResults?: number | "all") {
-  if (maxResults === "all") {
-    return inboxFetchLimit;
-  }
-
-  if (typeof maxResults === "number" && Number.isFinite(maxResults)) {
-    return Math.min(inboxFetchLimit, Math.max(1, Math.floor(maxResults)));
-  }
-
-  return getDefaultFetchMode();
+async function normalizeFetchLimit(maxResults?: number | "all") {
+  const policyLimit = Math.min(inboxFetchLimit, await getSyncEmailLimit());
+  if (maxResults === "all") return policyLimit;
+  if (typeof maxResults === "number" && Number.isFinite(maxResults)) return Math.min(policyLimit, Math.max(1, Math.floor(maxResults)));
+  return policyLimit;
 }
 
 function readRequestedFetchLimitFromRaw(rawValue: unknown) {
@@ -501,7 +487,7 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
     const userId = req.auth.userId;
     startSyncProgress(userId, "Fetching inbox emails");
     const query = fetchEmailsQuerySchema.parse(req.query);
-    const requestedMaxResults = normalizeFetchLimit(query.maxResults);
+    const requestedMaxResults = await normalizeFetchLimit(query.maxResults);
     const scopedAccountIds = await listActiveScopedAccountIds(
       userId,
       query.accountId,
@@ -952,6 +938,12 @@ export async function listProcessedEmails(req: AuthenticatedRequest, res: Respon
       ...mongoScope,
       status: query.status,
     };
+
+    if (query.mailboxType === "sent") {
+      mongoQuery.mailboxType = "sent";
+    } else {
+      mongoQuery.$and = [{ $or: [{ mailboxType: "inbox" }, { mailboxType: { $exists: false } }] }];
+    }
 
     if (query.sender) {
       mongoQuery.sender = query.sender.toLowerCase();

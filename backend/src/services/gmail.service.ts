@@ -27,6 +27,7 @@ export type GmailEmail = {
   subject: string;
   from: string;
   sender: string;
+  recipients: string[];
   body: string;
   htmlBody: string | null;
   attachments: EmailAttachmentRecord[];
@@ -431,6 +432,7 @@ async function toGmailEmail(
   const from = extractHeader(headers, "from") || "unknown@example.com";
   const senderMatch = from.match(/<([^>]+)>/);
   const sender = (senderMatch?.[1] ?? from).trim().toLowerCase();
+  const recipients = extractHeader(headers, "to").split(",").map((value) => value.trim()).filter(Boolean);
   const body = extractPlainTextBody(message.payload) || message.snippet || "";
 
   if (!message.id || !message.threadId) {
@@ -451,6 +453,7 @@ async function toGmailEmail(
     subject,
     from,
     sender,
+    recipients,
     body,
     htmlBody: extractHtmlBody(message.payload) ?? buildPlainTextHtml(body),
     attachments,

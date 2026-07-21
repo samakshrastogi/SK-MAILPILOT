@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { FiSend, FiX } from "react-icons/fi";
 
-import { createReplyTemplate, listReplyTemplates } from "../api/compose";
 import type { ComposeAttachmentInput, ProcessedEmail, ReplyTone } from "../types/email";
-import type { ReplyTemplate } from "../types/email";
-import { getCategoryLabel } from "../utils/emailCategory";
 
 type EmailModalProps = {
   email: ProcessedEmail | null;
@@ -87,12 +84,11 @@ export function EmailModal({
   const [customDateTime, setCustomDateTime] = useState("");
   const [replyTone, setReplyTone] = useState<ReplyTone>(email?.replyTone ?? "professional");
   const [replyAttachments, setReplyAttachments] = useState<ComposeAttachmentInput[]>([]);
-  const [templates, setTemplates] = useState<ReplyTemplate[]>([]);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   useEffect(() => {
-    void listReplyTemplates()
-      .then((response) => setTemplates(response.data))
-      .catch(() => setTemplates([]));
+    setReplyOpen(false);
+    setReplyDraft(email?.reply ?? "");
   }, [email?._id]);
 
   async function handleReplyFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -153,313 +149,25 @@ export function EmailModal({
           </div>
 
           {/* RIGHT */}
-          <div className="space-y-3 p-3 md:w-1/2 md:overflow-auto md:p-4">
-            
-            {/* 🔹 Reply Section */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-800">Reply</h3>
-
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]">
-                <select
-                  value={replyTone}
-                  onChange={(e) =>
-                    setReplyTone(e.target.value as ReplyTone)
-                  }
-                  className="h-9 min-w-0 rounded-lg border px-2.5 text-xs"
-                >
-                  <option value="professional">Professional</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="short">Short</option>
-                  <option value="detailed">Detailed</option>
-                </select>
-
-                <button
-                  disabled={generating}
-                  onClick={async () => {
-                    const updated = await onGenerateReply(
-                      email.numericId,
-                      replyTone
-                    );
-                    if (updated?.reply) {
-                      setReplyDraft(updated.reply);
-                      setReplyTone(updated.replyTone);
-                    }
-                  }}
-                  className="h-9 rounded-lg bg-gray-900 px-3 text-xs font-medium text-white"
-                >
-                  {generating ? "Generating..." : "AI Generate"}
-                </button>
-                <select
-                  title="Apply reply template"
-                  className="h-9 min-w-0 rounded-lg border px-2.5 text-xs"
-                  onChange={(e) => {
-                    const template = templates.find((item) => item._id === e.target.value);
-                    if (!template) {
-                      return;
-                    }
-                    setReplyDraft(template.body);
-                    setReplyTone(template.tone as ReplyTone);
-                  }}
-                  defaultValue=""
-                >
-                  <option value="">Templates</option>
-                  {templates.map((template) => (
-                    <option key={template._id} value={template._id}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void createReplyTemplate({
-                      name: email.subject,
-                      subject: `Re: ${email.subject}`,
-                      body: replyDraft,
-                      tone: replyTone,
-                      category: email.category,
-                      sender: email.sender,
-                      intent: "reply",
-                    }).then(async () => {
-                      const response = await listReplyTemplates();
-                      setTemplates(response.data);
-                    })
-                  }
-                  className="h-9 rounded-lg border px-3 text-xs font-medium whitespace-nowrap"
-                >
-                  Save template
-                </button>
-              </div>
-
-              <textarea
-                value={replyDraft}
-                onChange={(e) => setReplyDraft(e.target.value)}
-                className="min-h-[120px] w-full rounded-lg border p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 md:min-h-[100px] md:text-xs"
-              />
-
-              {/* Actions & Schedule */}
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] sm:items-center">
-                <button
-                  disabled={replying}
-                  onClick={() =>
-                    void onSendReplyNow(email.numericId, replyDraft, replyTone, replyAttachments)
-                  }
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white whitespace-nowrap"
-                >
-                  <FiSend size={14} />
-                  {replying ? "Sending..." : "Send"}
-                </button>
-
-                <button
-                  disabled={replying}
-                  onClick={() =>
-                    void onScheduleReply(email.numericId, {
-                      reply: replyDraft,
-                      style: replyTone,
-                      attachments: replyAttachments,
-                      sendAt: new Date(Date.now() + 3600000).toISOString(),
-                    })
-                  }
-                  className="h-9 rounded-lg border px-3 text-xs whitespace-nowrap"
-                >
-                  1 hour
-                </button>
-
-                <button
-                  disabled={replying}
-                  onClick={() =>
-                    void onScheduleReply(email.numericId, {
-                      reply: replyDraft,
-                      style: replyTone,
-                      attachments: replyAttachments,
-                      sendAt: tomorrowMorning().toISOString(),
-                    })
-                  }
-                  className="h-9 rounded-lg border px-3 text-xs whitespace-nowrap"
-                >
-                  Tomorrow
-                </button>
-
-                <input
-                  type="datetime-local"
-                  value={customDateTime}
-                  onChange={(e) => setCustomDateTime(e.target.value)}
-                  className="col-span-2 h-9 min-w-0 rounded-lg border px-2.5 text-xs sm:col-span-1"
-                  title="Select custom schedule time"
-                />
-
-                <button
-                  disabled={!customDateTime || replying}
-                  onClick={() =>
-                    void onScheduleReply(email.numericId, {
-                      reply: replyDraft,
-                      style: replyTone,
-                      attachments: replyAttachments,
-                      sendAt: new Date(customDateTime).toISOString(),
-                    })
-                  }
-                  className="h-9 rounded-lg bg-gray-200 px-3 text-xs whitespace-nowrap"
-                >
-                  Schedule
-                </button>
-              </div>
-
-              <label className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border px-3 text-xs font-medium sm:w-auto">
-                Add reply attachments
-                <input type="file" multiple className="hidden" onChange={(event) => void handleReplyFileChange(event)} />
-              </label>
-
-              {replyAttachments.length ? (
-                <div className="space-y-1">
-                  {replyAttachments.map((attachment, index) => (
-                    <div key={`${attachment.filename}-${index}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                      <span>{attachment.filename}</span>
-                      <button type="button" onClick={() => setReplyAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+          <div className="p-3 md:w-1/2 md:overflow-auto md:p-4">
+            {!replyOpen ? (
+              <button type="button" onClick={() => setReplyOpen(true)} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white sm:w-auto"><FiSend /> Reply</button>
+            ) : (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-800">Reply</h3><button type="button" onClick={() => setReplyOpen(false)} className="text-xs font-semibold text-slate-500">Collapse</button></div>
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <select value={replyTone} onChange={(e) => setReplyTone(e.target.value as ReplyTone)} className="h-10 rounded-lg border px-3 text-sm"><option value="professional">Professional</option><option value="friendly">Friendly</option><option value="short">Short</option><option value="detailed">Detailed</option></select>
+                  <button disabled={generating} onClick={async () => { const updated = await onGenerateReply(email.numericId, replyTone); if (updated?.reply) setReplyDraft(updated.reply); }} className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">{generating ? "Generating..." : "Generate reply"}</button>
                 </div>
-              ) : null}
-            </section>
-
-            {/* 🔹 Reply Metadata */}
-            <section className="grid grid-cols-2 gap-2 text-xs border-t pt-3">
-              <div>
-                <p className="text-gray-400 text-xs">Reply tone</p>
-                <p className="text-xs font-medium">{email.replyTone}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Status</p>
-                <p className="text-xs font-medium">{email.replyStatus}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Reply due</p>
-                <p className="text-xs font-medium">
-                  {email.replyDueAt ? new Date(email.replyDueAt).toLocaleString() : "No SLA"}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Risk</p>
-                <p className="text-xs font-medium capitalize">{email.replyRiskStatus}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Scheduled</p>
-                <p className="text-xs font-medium">
-                  {email.scheduledReplyAt
-                    ? new Date(email.scheduledReplyAt).toLocaleString()
-                    : "Not scheduled"}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Sent</p>
-                <p className="text-xs font-medium">
-                  {email.replySentAt
-                    ? new Date(email.replySentAt).toLocaleString()
-                    : "Not sent"}
-                </p>
-              </div>
-              {email.replyError && (
-                <div className="col-span-2 text-red-500 text-xs">
-                  {email.replyError}
-                </div>
-              )}
-            </section>
-
-            {/* 🔹 Metadata */}
-            <section className="grid grid-cols-2 gap-2 text-xs border-t pt-3">
-              <div>
-                <p className="text-gray-400 text-xs">Category</p>
-                <p className="text-xs font-medium">{getCategoryLabel(email.category)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Priority</p>
-                <p className="text-xs font-medium">{email.priority}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Status</p>
-                <p className="text-xs font-medium">{email.status}</p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-xs">Follow-up</p>
-                <p className="text-xs font-medium">{email.followUpPending ? "Pending" : "None"}</p>
-              </div>
-            </section>
-
-            {/* 🔹 Automation */}
-            {email.automationActions?.length && (
-              <section className="border-t pt-3">
-                <h3 className="text-xs font-semibold text-gray-800 mb-2">Automation</h3>
-                <div className="flex flex-wrap gap-1">
-                  {email.automationActions.map((a) => (
-                    <span key={a} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                      {a}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* 🔹 Attachments */}
-            {email.attachments?.length && (
-              <section className="border-t pt-3">
-                <h3 className="text-xs font-semibold text-gray-800 mb-2">Attachments</h3>
-
-                <div className="grid gap-2">
-                  {email.attachments.map((att) => (
-                    <div
-                      key={att.filename}
-                      className="border rounded-lg p-2 space-y-1"
-                    >
-                      <div className="flex justify-between">
-                        <div>
-                          <p className="text-xs font-medium">{att.filename}</p>
-                          <p className="text-xs text-gray-500">{att.mimeType}</p>
-                        </div>
-                        <span className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                          {Math.round(att.size / 1024)} KB
-                        </span>
-                      </div>
-
-                      {att.summary && (
-                        <p className="text-xs text-gray-600">
-                          {att.summary}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap gap-1">
-                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-                          {att.documentType}
-                        </span>
-                        {att.keyData.map((item) => (
-                          <span key={item} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-
-                      {att.extractedFields.length ? (
-                        <div className="grid gap-1 rounded-lg bg-slate-50 px-2 py-2 text-[11px] text-slate-600">
-                          {att.extractedFields.map((field) => (
-                            <div key={`${att.filename}-${field.label}`} className="flex items-start justify-between gap-3">
-                              <span className="font-medium text-slate-500">{field.label}</span>
-                              <span className="text-right text-slate-700">{field.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {att.previewUrl && (
-                        <a
-                          href={att.previewUrl}
-                          target="_blank"
-                          className="text-blue-600 text-xs"
-                        >
-                          Preview
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                <textarea value={replyDraft} onChange={(e) => setReplyDraft(e.target.value)} placeholder="Write your reply..." className="min-h-36 w-full rounded-xl border p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-slate-300 px-4 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><span>{replyAttachments.length ? "Add more files (" + replyAttachments.length + " selected)" : "Attach files"}</span><input type="file" multiple className="hidden" onChange={(event) => void handleReplyFileChange(event)} /></label>
+                {replyAttachments.length ? <div className="space-y-1">{replyAttachments.map((attachment, index) => <div key={attachment.filename + "-" + index} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs"><span className="truncate">{attachment.filename}</span><button type="button" onClick={() => setReplyAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}</div> : null}
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <button disabled={replying || !replyDraft.trim()} onClick={() => void onSendReplyNow(email.numericId, replyDraft, replyTone, replyAttachments)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white"><FiSend />{replying ? "Sending..." : "Send reply"}</button>
+                  <button disabled={replying} onClick={() => void onScheduleReply(email.numericId, { reply: replyDraft, style: replyTone, attachments: replyAttachments, sendAt: new Date(Date.now() + 3600000).toISOString() })} className="h-10 rounded-lg border px-3 text-sm">In 1 hour</button>
+                  <button disabled={replying} onClick={() => void onScheduleReply(email.numericId, { reply: replyDraft, style: replyTone, attachments: replyAttachments, sendAt: tomorrowMorning().toISOString() })} className="h-10 rounded-lg border px-3 text-sm">Tomorrow</button>
+                  <input type="datetime-local" value={customDateTime} onChange={(e) => setCustomDateTime(e.target.value)} className="h-10 min-w-0 rounded-lg border px-3 text-sm" />
+                  <button disabled={!customDateTime || replying} onClick={() => void onScheduleReply(email.numericId, { reply: replyDraft, style: replyTone, attachments: replyAttachments, sendAt: new Date(customDateTime).toISOString() })} className="h-10 rounded-lg bg-slate-200 px-3 text-sm">Schedule</button>
                 </div>
               </section>
             )}

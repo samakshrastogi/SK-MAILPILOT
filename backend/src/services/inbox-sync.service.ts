@@ -24,6 +24,8 @@ async function upsertProcessedEmail(email: {
   userId: string;
   accountId?: string | null;
   sender: string;
+  recipients?: string[];
+  mailboxType?: "inbox" | "sent";
   subject: string;
   body: string;
   htmlBody?: string | null;
@@ -45,6 +47,8 @@ async function upsertProcessedEmail(email: {
     userId: email.userId,
     accountId: email.accountId ?? null,
     sender: email.sender,
+    recipients: email.recipients ?? [],
+    mailboxType: email.mailboxType ?? "inbox",
     subject: email.subject,
     content: trimmedBody,
     htmlContent: email.htmlBody ?? null,
@@ -74,6 +78,8 @@ function mapFetchedEmailToPersistedShape(
 ) {
   return {
     sender: email.sender,
+    recipients: email.recipients,
+    mailboxType: email.labelIds.includes("SENT") ? ("sent" as const) : ("inbox" as const),
     userId,
     accountId: accountId ?? email.accountId,
     subject: email.subject,

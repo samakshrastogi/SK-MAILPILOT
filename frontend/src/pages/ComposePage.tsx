@@ -70,6 +70,8 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [tone, setTone] = useState<"professional" | "friendly" | "short" | "detailed" | "formal" | "casual">("professional");
@@ -89,6 +91,8 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
     setTo("");
     setCc("");
     setBcc("");
+    setShowCc(false);
+    setShowBcc(false);
     setSubject("");
     setBody("");
     setTone("professional");
@@ -371,6 +375,8 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
     setTo(item.recipients.join(", "));
     setCc(item.cc.join(", "));
     setBcc(item.bcc.join(", "));
+    setShowCc(item.cc.length > 0);
+    setShowBcc(item.bcc.length > 0);
     setSubject(item.subject);
     setBody(item.body);
     setTone(item.tone);
@@ -613,26 +619,20 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
 
             {/* Recipients */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">To</label>
-                <input
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  placeholder="recipient@example.com, another@example.com"
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                />
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block text-xs font-semibold text-slate-700">To</label>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => setShowCc((value) => !value)} className={`rounded px-2 py-0.5 text-[11px] font-semibold ${showCc ? "bg-sky-100 text-sky-700" : "text-slate-500 hover:bg-slate-100"}`}>Cc</button>
+                    <button type="button" onClick={() => setShowBcc((value) => !value)} className={`rounded px-2 py-0.5 text-[11px] font-semibold ${showBcc ? "bg-sky-100 text-sky-700" : "text-slate-500 hover:bg-slate-100"}`}>Bcc</button>
+                  </div>
+                </div>
+                <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="recipient@example.com, another@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
               </div>
             </div>
-
-              <div className="grid gap-2.5 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700">Cc</label>
-                  <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="cc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-700">Bcc</label>
-                  <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="bcc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100" />
-                </div>
-              </div>
+            {showCc || showBcc ? <div className="grid gap-2.5 md:grid-cols-2">
+              {showCc ? <div><label className="mb-1 block text-xs font-semibold text-slate-700">Cc</label><input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="cc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100" /></div> : <div />}
+              {showBcc ? <div><label className="mb-1 block text-xs font-semibold text-slate-700">Bcc</label><input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="bcc@example.com" className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100" /></div> : null}
+            </div> : null}
 
             {/* Subject + AI */}
             <div>
@@ -756,7 +756,7 @@ export function ComposePage({ accounts, selectedAccountId, includeAllAccounts }:
                     ? "Update email"
                     : scheduledAt || recurrence.frequency !== "none"
                       ? "Schedule email"
-                      : "Send now"}
+                      : "Send mail"}
               </button>
 
               {editingId && (

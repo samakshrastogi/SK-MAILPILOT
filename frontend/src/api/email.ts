@@ -53,6 +53,7 @@ export async function listProcessedEmails(params: EmailListParams = {}) {
       groupByThread: params.groupByThread,
       sortBy: params.sortBy ?? "latest",
       status: params.status ?? "active",
+      mailboxType: params.mailboxType ?? "inbox",
     })}`
   );
 }
@@ -107,6 +108,7 @@ export async function sendReplyNowById(
     body: JSON.stringify({
       reply: payload?.reply,
       style: payload?.style,
+      attachments: payload?.attachments,
     }),
   });
 }
@@ -222,12 +224,14 @@ export async function fetchProcessedEmailsFromScopedInbox(options?: {
   maxResults?: number | "all";
   accountId?: string;
   includeAllAccounts?: boolean;
+  labelIds?: string;
 }) {
   return request<FetchEmailsResponse>(
     `/api/email/fetch${buildQuery({
       maxResults: options?.maxResults === undefined ? undefined : String(options.maxResults),
       accountId: options?.accountId,
       includeAllAccounts: options?.includeAllAccounts,
+      labelIds: options?.labelIds,
     })}`
   );
 }
