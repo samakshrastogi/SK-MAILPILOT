@@ -21,7 +21,7 @@ function isAdminOrReviewer(role?: string) {
 
 export async function getCentralInsights(_req: AuthenticatedRequest, res: Response) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduledByStatus, categories, syncEmailLimit] = await Promise.all([
+  const [users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduledByStatus, categories, syncEmailLimit, userDetails, mailboxDetails, processedEmailDetails, recentEmailDetails, pendingReplyDetails, overdueReplyDetails, highPriorityDetails, syncDetails, scheduledDetails, approvalDetails] = await Promise.all([
     UserModel.countDocuments({}),
     GmailAccountModel.countDocuments({ status: "active" }),
     EmailModel.countDocuments({ status: "active" }),
@@ -34,7 +34,17 @@ export async function getCentralInsights(_req: AuthenticatedRequest, res: Respon
     MailAccessRequestModel.countDocuments({ status: "pending" }),
     ScheduledEmailModel.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
     EmailModel.aggregate([{ $match: { status: "active" } }, { $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
-    getSyncEmailLimit()
+    getSyncEmailLimit(),
+    UserModel.find({}).select("name email role createdAt").sort({ createdAt: -1 }).limit(500).lean(),
+    GmailAccountModel.find({ status: "active" }).select("userId email displayName status isPrimary createdAt").populate("userId", "name email").sort({ createdAt: -1 }).limit(500).lean(),
+    EmailModel.find({ status: "active" }).select("userId subject sender mailboxType category priority replyStatus replyRiskStatus processedAt").populate("userId", "name email").sort({ processedAt: -1 }).limit(500).lean(),
+    EmailModel.find({ status: "active", createdAt: { $gte: sevenDaysAgo } }).select("userId subject sender mailboxType category priority replyStatus replyRiskStatus processedAt").populate("userId", "name email").sort({ processedAt: -1 }).limit(500).lean(),
+    EmailModel.find({ status: "active", needsReply: true, replyStatus: { $ne: "sent" } }).select("userId subject sender category priority replyStatus replyRiskStatus replyDueAt processedAt").populate("userId", "name email").sort({ replyDueAt: 1 }).limit(500).lean(),
+    EmailModel.find({ status: "active", replyRiskStatus: "overdue" }).select("userId subject sender category priority replyStatus replyRiskStatus replyDueAt processedAt").populate("userId", "name email").sort({ replyDueAt: 1 }).limit(500).lean(),
+    EmailModel.find({ status: "active", priority: "high" }).select("userId subject sender category priority replyStatus replyRiskStatus processedAt").populate("userId", "name email").sort({ processedAt: -1 }).limit(500).lean(),
+    SyncHistoryModel.find({}).select("userId status requestedCount fetchedCount processedCount skippedCount failedCount durationMs failureReasons createdAt").populate("userId", "name email").sort({ createdAt: -1 }).limit(500).lean(),
+    ScheduledEmailModel.find({}).select("userId recipients subject status scheduledAt lastSentAt lastError createdAt").populate("userId", "name email").sort({ createdAt: -1 }).limit(500).lean(),
+    MailAccessRequestModel.find({}).select("requesterName requesterEmail requestedAccountEmail status approvedByEmail approvedAt createdAt").sort({ createdAt: -1 }).limit(500).lean()
   ]);
   const schedule = Object.fromEntries((scheduledByStatus as Array<{ _id: string; count: number }>).map((row) => [row._id, row.count]));
   res.status(200).json({
@@ -44,7 +54,19 @@ export async function getCentralInsights(_req: AuthenticatedRequest, res: Respon
       summary: { users, activeMailboxes, processedEmails, recentEmails, pendingReplies, overdueReplies, highPriority, syncRuns, syncFailures, pendingApprovals, scheduled: schedule.scheduled ?? 0, drafts: schedule.draft ?? 0, sent: schedule.sent ?? 0, failed: schedule.failed ?? 0 },
       categoryDistribution: (categories as Array<{ _id: string; count: number }>).map((row) => ({ label: row._id || "other", value: row.count })),
       health: { syncSuccessRate: syncRuns > 0 ? Math.round(((syncRuns - syncFailures) / syncRuns) * 100) : 100, sendSuccessRate: ((schedule.sent ?? 0) + (schedule.failed ?? 0)) > 0 ? Math.round(((schedule.sent ?? 0) / ((schedule.sent ?? 0) + (schedule.failed ?? 0))) * 100) : 100 },
-      settings: { syncEmailLimit }
+      settings: { syncEmailLimit },
+      details: {
+        users: userDetails,
+        activeMailboxes: mailboxDetails,
+        processedEmails: processedEmailDetails,
+        recentEmails: recentEmailDetails,
+        pendingReplies: pendingReplyDetails,
+        overdueReplies: overdueReplyDetails,
+        highPriority: highPriorityDetails,
+        syncRuns: syncDetails,
+        scheduledEmails: scheduledDetails,
+        approvalRequests: approvalDetails
+      }
     }
   });
 }
