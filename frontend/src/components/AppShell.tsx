@@ -161,8 +161,7 @@ export function AppShell({
     group-hover:shadow-lg group-hover:scale-105 
     transition-all duration-200 sm:h-10 sm:w-10 sm:rounded-xl sm:text-base"
                 >
-                  SK
-
+                  <img src="/sk-logo.png" alt="" className="h-full w-full rounded-lg object-cover sm:rounded-xl" />
                   {/* subtle glow */}
                   <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 transition-opacity group-hover:opacity-100 sm:rounded-xl" />
                 </div>
