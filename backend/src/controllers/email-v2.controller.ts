@@ -689,9 +689,12 @@ export async function fetchEmails(req: AuthenticatedRequest, res: Response) {
         },
       });
     }
-    res.status(500).json({
+    const errorMessage = error instanceof Error ? error.message : "Unknown Gmail fetch error";
+    const reconnectRequired = /gmail authorization|invalid_grant|reconnect this mailbox/i.test(errorMessage);
+    res.status(reconnectRequired ? 409 : 500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Unknown Gmail fetch error",
+      code: reconnectRequired ? "GMAIL_RECONNECT_REQUIRED" : "GMAIL_SYNC_FAILED",
+      error: errorMessage,
     });
   }
 }
@@ -939,11 +942,7 @@ export async function listProcessedEmails(req: AuthenticatedRequest, res: Respon
       status: query.status,
     };
 
-    if (query.mailboxType === "sent") {
-      mongoQuery.mailboxType = "sent";
-    } else {
-      mongoQuery.$and = [{ $or: [{ mailboxType: "inbox" }, { mailboxType: { $exists: false } }] }];
-    }
+    mongoQuery.mailboxType = query.mailboxType;
 
     if (query.sender) {
       mongoQuery.sender = query.sender.toLowerCase();
@@ -1021,7 +1020,7 @@ export async function listProcessedEmails(req: AuthenticatedRequest, res: Respon
           },
         ];
         const [grouped, senders] = await Promise.all([
-          EmailModel.aggregate(groupPipeline),
+          EmailModel.aggregate(groupPipeline).allowDiskUse(true),
           uniqueSendersPromise,
         ]);
         const sortedGroups = grouped.sort((left, right) => {
@@ -1059,6 +1058,7 @@ export async function listProcessedEmails(req: AuthenticatedRequest, res: Respon
         EmailModel.countDocuments(mongoQuery),
         EmailModel.find(mongoQuery)
           .sort(buildSort(query.sortBy))
+          .allowDiskUse(true)
           .skip((query.page - 1) * query.limit)
           .limit(query.limit)
           .lean(),

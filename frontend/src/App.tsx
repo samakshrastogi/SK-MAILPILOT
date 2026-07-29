@@ -86,7 +86,11 @@ function isScopeReconnectError(message: string) {
   return (
     normalized.includes("insufficient authentication scopes") ||
     normalized.includes("insufficient authentication scope") ||
-    normalized.includes("send-capable scope")
+    normalized.includes("send-capable scope") ||
+    normalized.includes("gmail authorization") ||
+    normalized.includes("invalid_grant") ||
+    normalized.includes("reconnect this mailbox") ||
+    normalized.includes("needs gmail permissions again")
   );
 }
 
@@ -421,6 +425,9 @@ export default function App() {
         setMailAccessError(
           "This mail needs Gmail permissions again. Select the approved mail below and reconnect it."
         );
+        void listGmailAccounts()
+          .then((response) => setAccounts(response.data))
+          .catch(() => setAccounts([]));
       }
       openMailAccessModal(isScopeReconnectError(mailPilot.error));
     }
@@ -840,7 +847,7 @@ export default function App() {
   async function handleConnectAccount() {
     const requestedEmail = mailAccessRequestedEmail.trim().toLowerCase();
 
-    if (connectedAccountEmails.has(requestedEmail)) {
+    if (connectedAccountEmails.has(requestedEmail) && !isScopeReconnectError(mailAccessError ?? "")) {
       setMailAccessModalOpen(false);
       setFetchModalOpen(false);
       setMailAccessError(null);

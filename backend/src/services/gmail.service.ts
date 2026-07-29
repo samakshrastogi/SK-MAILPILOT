@@ -120,12 +120,34 @@ async function mapWithConcurrencyLimit<T, R>(
   return results;
 }
 
-function toReadableGmailError(error: unknown, action: string) {
+function isInvalidGrantError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /invalid_grant/i.test(message);
+}
+
+async function disconnectAccountAfterInvalidGrant(account: GmailAccountContext) {
+  if (!account.id) return;
+
+  await GmailAccountModel.updateOne(
+    { _id: account.id },
+    {
+      $set: { status: "disconnected" },
+      $unset: { accessToken: 1, refreshToken: 1, tokenExpiryDate: 1 },
+    }
+  );
+  logger.warn("Disconnected Gmail account after OAuth grant became invalid", {
+    accountId: account.id,
+    email: account.email,
+  });
+}
+
+function toReadableGmailError(error: unknown, action: string, accountEmail?: string) {
   const message = error instanceof Error ? error.message : "Unknown Gmail API error";
 
   if (/invalid_grant/i.test(message)) {
+    const mailbox = accountEmail ? ` for ${accountEmail}` : "";
     return new Error(
-      `Gmail ${action} failed because GOOGLE_REFRESH_TOKEN is invalid or expired. Generate a new refresh token for this OAuth client and update backend/.env. If the Google OAuth consent screen is still in Testing, Google can expire refresh tokens after 7 days.`
+      `Gmail authorization${mailbox} is invalid or expired. Reconnect this mailbox from MailPilot to restore synchronization. If the OAuth consent screen is in Testing, Google may expire refresh tokens after 7 days.`
     );
   }
 
@@ -499,17 +521,25 @@ export async function fetchEmailsFromGmail(
       break;
     }
 
-    const listResponse = await withTimeout(
-      gmail.users.messages.list({
-        userId: "me",
-        maxResults:
-          typeof targetCount === "number" ? Math.min(100, Math.max(1, remaining)) : 100,
-        q: parsedOptions.query,
-        labelIds: parsedOptions.labelIds,
-        pageToken: nextPageToken,
-      }),
-      "gmail.users.messages.list"
-    );
+    let listResponse;
+    try {
+      listResponse = await withTimeout(
+        gmail.users.messages.list({
+          userId: "me",
+          maxResults:
+            typeof targetCount === "number" ? Math.min(100, Math.max(1, remaining)) : 100,
+          q: parsedOptions.query,
+          labelIds: parsedOptions.labelIds,
+          pageToken: nextPageToken,
+        }),
+        "gmail.users.messages.list"
+      );
+    } catch (error) {
+      if (isInvalidGrantError(error)) {
+        await disconnectAccountAfterInvalidGrant(account);
+      }
+      throw toReadableGmailError(error, "sync", account.email);
+    }
 
     const messages = listResponse.data.messages ?? [];
     pageCount += 1;
@@ -542,6 +572,10 @@ export async function fetchEmailsFromGmail(
         }
         return email;
       } catch (error) {
+        if (isInvalidGrantError(error)) {
+          await disconnectAccountAfterInvalidGrant(account);
+          throw toReadableGmailError(error, "sync", account.email);
+        }
         logger.warn("Skipping Gmail message after fetch failure", {
           id: messageRef.id ?? "unknown",
           error: error instanceof Error ? error.message : "Unknown error",

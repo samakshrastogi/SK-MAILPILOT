@@ -26,6 +26,12 @@ export const connectDB = async () => {
       }
     );
 
+    await emailCollection.updateMany(
+      { mailboxType: { $exists: false } },
+      { $set: { mailboxType: "inbox" } }
+    );
+    await EmailModel.createIndexes();
+
     await UserModel.updateMany(
       { googleSubject: null },
       { $unset: { googleSubject: 1 } }

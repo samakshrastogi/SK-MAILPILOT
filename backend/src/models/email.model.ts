@@ -189,5 +189,11 @@ emailSchema.index({ userId: 1, status: 1, category: 1 });
 emailSchema.index({ userId: 1, accountId: 1, status: 1, category: 1 });
 emailSchema.index({ userId: 1, status: 1, needsReply: 1, replyStatus: 1 });
 emailSchema.index({ userId: 1, accountId: 1, status: 1, needsReply: 1, replyStatus: 1 });
+emailSchema.index({ userId: 1, status: 1, mailboxType: 1, originalDate: -1, updatedAt: -1 });
+emailSchema.index({ userId: 1, accountId: 1, status: 1, mailboxType: 1, originalDate: -1, updatedAt: -1 });
+emailSchema.index({ userId: 1, status: 1, mailboxType: 1, priority: 1, originalDate: -1, updatedAt: -1 });
+emailSchema.index({ userId: 1, accountId: 1, status: 1, mailboxType: 1, priority: 1, originalDate: -1, updatedAt: -1 });
+emailSchema.index({ userId: 1, status: 1, mailboxType: 1, sender: 1, originalDate: -1, updatedAt: -1 });
+emailSchema.index({ userId: 1, accountId: 1, status: 1, mailboxType: 1, sender: 1, originalDate: -1, updatedAt: -1 });
 
 export const EmailModel = models.Email ?? model("Email", emailSchema);
